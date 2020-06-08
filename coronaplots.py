@@ -1,15 +1,12 @@
-# %%
-# from IPython import get_ipython
-
 # %% [markdown]
 # # CoronaPlots report
 # 
 # This code focus on readability instead speed. 
 # 
 # > Note, you can remove all filters and others steps by replacing it by a simple loop.
+
 # %%
 # -*- coding: utf-8 -*-
-# get_ipython().run_line_magic('config', 'IPCompleter.greedy=True')
 
 # %% [markdown]
 # ---
@@ -93,7 +90,7 @@ SCOPE = [
 URL = 'https://docs.google.com/spreadsheets/d/1YERxbIO0VgnVLElEgFxsv_Hr2ra6nHuPVUUGx6OVds4/edit?usp=sharing'
 
 # Create an Client
-GAUTH = Credentials.from_json_keyfile_name('nisis_credentials.json',SCOPE)
+GAUTH = Credentials.from_json_keyfile_name('credentials/nisis_credentials.json',SCOPE)
 # Auth the client
 GCLIENT = gspread.authorize(GAUTH)
 
