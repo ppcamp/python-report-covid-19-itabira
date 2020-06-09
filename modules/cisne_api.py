@@ -1,8 +1,21 @@
 import requests
 import json
 import pandas as pd
+from datetime import datetime
 
+def GetEpidemicWeek(curr_date):
+    '''
+    Parameters
+    ----------
+    curr_date: (str) Date in yyyy-mm-dd
 
+    Return
+    ------
+    (int) Week number of year
+    '''
+    _aux = datetime.strptime(curr_date, '%Y-%m-%d')
+    return _aux.isocalendar()[1]
+    
 def CisneGetData(curr_date, save_json=False):
     '''
     Parameters
