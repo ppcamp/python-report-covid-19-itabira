@@ -927,7 +927,7 @@ def putSecThree():
     page.drawCentredString(
         pgDim['w']/2,
         yPos,
-        "DISTRIBUIÇÃO DOS CASOS POR Neighboorhood")
+        "DISTRIBUIÇÃO DOS CASOS POR BAIRRO")
     
     yPos += 50
     xPos = 30
