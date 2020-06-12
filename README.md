@@ -14,6 +14,7 @@ pip3 -q install reportlab > /dev/null
 
 # Download tools to login and get spreadsheet
 pip3 -q install oauth2client > /dev/null
+pip3 -q install wheel > /dev/null
 pip3 -q install gspread > /dev/null
 
 # Download tools to threat data
