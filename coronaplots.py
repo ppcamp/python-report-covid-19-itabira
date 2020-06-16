@@ -7,7 +7,7 @@
 # 
 # > Note, you can remove all filters and others steps by replacing it by a simple loop.
 
-# In[5]:
+# In[1]:
 
 
 # -*- coding: utf-8 -*-
@@ -16,12 +16,15 @@
 # ---
 # # Getting current date
 
-# In[6]:
+# In[2]:
 
 
 # pytz.all_timezones to see all timezones
 from pytz import timezone # Defaul timezone it's ahead of Brasil(+)
-from datetime import datetime
+from datetime import datetime, date
+
+def isMonday():
+  return date.today().isoweekday() == 1
 
 # Note that changing linux localtime, doesn't affect Python
 BRASIL_TZ = timezone('America/Campo_Grande')
@@ -66,7 +69,7 @@ MONTH_NAME = getMonthName(MONTH, True)
 # # Starting logging
 # [See this tip 'bout logging](https://docs.python.org/3/library/logging.html#logrecord-attributes)
 
-# In[7]:
+# In[3]:
 
 
 import logging as log
@@ -86,7 +89,7 @@ log.debug('Default timezone: {}'.format(BRASIL_TZ))
 
 # ## Login
 
-# In[8]:
+# In[4]:
 
 
 from oauth2client.service_account import ServiceAccountCredentials as Credentials
@@ -105,7 +108,7 @@ GAUTH = Credentials.from_json_keyfile_name('credentials/nisis_credentials.json',
 GCLIENT = gspread.authorize(GAUTH)
 
 
-# In[9]:
+# In[5]:
 
 
 log.info('Client acquired with success!')
@@ -113,7 +116,7 @@ log.info('Client acquired with success!')
 
 # ## Sheet Load
 
-# In[10]:
+# In[6]:
 
 
 import pandas as pd
@@ -234,7 +237,7 @@ def getSheetValue(sheet_name, URL, gc, debug=False):
   return df
 
 
-# In[11]:
+# In[7]:
 
 
 # Getting results
@@ -246,7 +249,7 @@ log.info('Tab "{}" oppened with success!'.format(sheetName))
 
 # # Image and Copy Imports
 
-# In[12]:
+# In[8]:
 
 
 # To import image in reportlab. Images are Pillow formats or BytesIO
@@ -258,7 +261,7 @@ from copy import deepcopy as dp # dataframe creation and manipulation permanent
 
 # # Load Images
 
-# In[13]:
+# In[9]:
 
 
 def alpha2white(img):
@@ -276,20 +279,21 @@ logo = ImageReader( Image.open('img/logo.png').rotate(180).transpose(Image.FLIP_
 # It's necessary rotate because PIL inverted.
 
 
-# In[14]:
+# In[10]:
 
 
 log.info('Images loaded successfully')
 
 
-# # Graphic data
+# # Data analysis
 # 
 # > In _Google sheets_ you can use COUNTIF functions to count ocurrences in a column:
 # >```xls
 # =COUNTIF(T1:T2000;"SUSPEITO")
+# =SUBTOTAL(103;A2:A2000) # Count visible rows
 # ```
 
-# In[15]:
+# In[11]:
 
 
 def similar(word1, word2, accept=False, caseSensitive=False, method='BuiltIn'):
@@ -375,7 +379,7 @@ def applyFilter(df, l, word, col):
     return int(len(list( filter(getValue, df.loc[l, col]) )))
 
 
-# In[20]:
+# In[ ]:
 
 
 # To be clear in variable manipulation, every var in this section will have
@@ -406,7 +410,7 @@ DISEASES = [
 
 # Vector of positions in dataframe corresponding to situations
 d2a_vConfirmed   = np.array( df['Situation']=='confirmado', dtype=np.bool )
-d2a_vDunderI     = np.array( df['Situation']=='obito em investigação', dtype=np.bool ) # deaths under investigation
+d2a_vDunderI     = np.array( df['Monitoring']=='obito em investigação', dtype=np.bool ) # deaths under investigation
 d2a_vSuspect     = np.array( df['Situation']=='suspeito', dtype=np.bool ) | d2a_vDunderI
 d2a_vAnalysis    = np.array( df['Situation']=='baixa probabilidade', dtype=np.bool )
 d2a_vDiscarted   = np.array( df['Situation']=='descartado', dtype=np.bool )
@@ -430,7 +434,7 @@ d2a_TofChome     = applyFilter(df, d2a_vConfirmed,'amento domiciliar','Situation
 d2a_TofCdead     = applyFilter(df, d2a_vConfirmed,'óbito','SituationOfConfirmed')
 
 # Total of Suspects monitoring
-d2a_TofSmonitor  = int(len(list( filter(None, d2a_vMonitoring & d2a_vSuspect) )))
+d2a_TofSmonitor  = int(len(list( filter(None, d2a_vMonitoring & (d2a_vSuspect|d2a_vInterned) ))))
 
 # Total of Discarted deaths
 d2a_TofDdeaths   = applyFilter(df, d2a_vDiscarted,'óbito','Discarted')
@@ -510,21 +514,27 @@ for it in df.index:
     if d2a_vAnalysis[it]:
         d2a_vAage[ ageRange(df.loc[it,'Age']) ] += 1
         
-        
 # Now we must access a stored data which refers to oldiest reports
+_cdate = '{}-{}-{}'.format(YEAR, MONTH, DAY)
 d2a_dfCStimeline = pd.read_csv('others/brief_reports_data.csv')
-d2a_dfCStimeline.set_index('Data')
-d2a_dfCStimeline.append({
-    'Data': '{}-{}-{}'.format(YEAR, MONTH, DAY),
-    'Sindrome': str( d2a_TofSuspect ),
-    'Covid': str( d2a_TofConfirmed )
-    },
-    ignore_index=True
-)
-d2a_dfCStimeline.to_csv('others/brief_reports_data.csv')
+
+if isMonday(): 
+  if _cdate in d2a_dfCStimeline['Data'].tolist():
+    _pos = d2a_dfCStimeline['Data']==_cdate
+    d2a_dfCStimeline.loc[_pos, 'Sindrome'] = np.int64(d2a_TofSuspect)
+    d2a_dfCStimeline.loc[_pos, 'Covid'] = np.int64(d2a_TofConfirmed)
+    
+  else:
+    d2a_dfCStimeline = d2a_dfCStimeline.append({
+        'Data': _cdate,
+        'Sindrome': np.int64(d2a_TofSuspect),
+        'Covid': np.int64(d2a_TofConfirmed)
+        },
+        ignore_index=True)
+  d2a_dfCStimeline.to_csv('others/brief_reports_data.csv', index=False)
 
 
-# In[154]:
+# In[ ]:
 
 
 # Where don't have an NHD the type is NaN, due that, we can't access it
@@ -532,15 +542,15 @@ _nbh = []
 for i in set(df['Neighboorhood']): 
   conf  = len(list(filter(lambda x: x, df.loc[d2a_vConfirmed, 'Neighboorhood']==i)))
   susp  = len(list(filter(lambda x: x, df.loc[d2a_vSuspect, 'Neighboorhood']==i)))
-  anali = len(list(filter(lambda x: x, df.loc[d2a_vAnalysis, 'Neighboorhood']==i)))
-  _nbh.append({ 'Neighboorhood': i, 'qtdSuspect': susp, 'qtdConf': conf, 'qtdAnalis': anali})
+  #anali = len(list(filter(lambda x: x, df.loc[d2a_vAnalysis, 'Neighboorhood']==i)))
+  _nbh.append({ 'Neighboorhood': i, 'qtdSuspect': susp, 'qtdConf': conf})#, 'qtdAnalis': anali})
 # Sort by ascending order
-d2a_vNeighboorhood = sorted(_nbh, key=lambda k: k['qtdSuspect'], reverse=True)
+d2a_vNeighboorhood = sorted(_nbh, key=lambda k: k['qtdConf'], reverse=True)
 
 
 # # Plots
 
-# In[136]:
+# In[ ]:
 
 
 import matplotlib.pyplot as plt
@@ -593,7 +603,7 @@ def linePlot(y,x, siz,palette="Oranges"):
   return ImageReader( buff )
 
 
-def linePlot2(df, y, siz, ftsize='x-small'):
+def linePlot2(df, y, siz, ftsize='small'):
   from math import floor
   
   fig = plt.figure( figsize=siz )
@@ -611,8 +621,8 @@ def linePlot2(df, y, siz, ftsize='x-small'):
   xStart = 0
   xSpace = floor( (df.shape[0] - xStart)/10 ) # It'll give me the spacing
   vxSpace = [i for i in range(xStart, df.shape[0], xSpace) ]
-  vxNames = df.loc[ vxSpace, 'Data' ].tolist() + [df.loc[df.shape[0]-1,'Data']]
-  plt.xticks(vxSpace + [df.shape[0]], vxNames, rotation=90)
+  vxNames = df.loc[ vxSpace, 'Data' ].tolist()
+  plt.xticks(vxSpace, vxNames, rotation=90)
   
   for i in range(df.shape[0]):
     _v = df.loc[i,y]
@@ -637,7 +647,7 @@ def linePlot2(df, y, siz, ftsize='x-small'):
   return ImageReader( buff )
 
 
-# In[137]:
+# In[ ]:
 
 
 # Generating
@@ -654,7 +664,7 @@ graphic_Stimeline   = linePlot2(d2a_dfCStimeline, 'Sindrome', (15,5) )
 
 # ## Imports
 
-# In[138]:
+# In[ ]:
 
 
 from reportlab import __version__
@@ -669,7 +679,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 
 # ## Font family and others settings
 
-# In[139]:
+# In[ ]:
 
 
 
@@ -701,7 +711,7 @@ myColors = {
 
 # ## Default configs
 
-# In[140]:
+# In[ ]:
 
 
 keywords = ['PDF report','Corona', 'Corona vírus', 'vírus', 'COVID19']
@@ -723,7 +733,7 @@ page = '' # just to initialize the variable
 
 # ## Start
 
-# In[141]:
+# In[ ]:
 
 
 def pdf_Start(fileName):
@@ -749,7 +759,7 @@ def pdf_Start(fileName):
 
 # ## Title
 
-# In[142]:
+# In[ ]:
 
 
 def setTitle(t):
@@ -761,7 +771,7 @@ def setTitle(t):
 
 # ## Header
 
-# In[143]:
+# In[ ]:
 
 
 def putHeader(c1, c2):
@@ -808,13 +818,22 @@ def putHeader(c1, c2):
 
 # ## Emphasis
 
-# In[144]:
+# In[ ]:
 
 
 def putEmphasis():
     global page, yPos
 
     def dots(page, x, y, s, k):
+        '''
+        Parameters
+        ----------
+        page: (reportlab) (where to modify)
+        x: (int) x start pos
+        y: (int) y start pos
+        s: (int) y number of dots
+        x: (int) x number of dots
+        '''
         i,j = 1,0
         while i <= s:
             page.circle(x, y + 8*i, 2, stroke=0, fill=1)
@@ -897,7 +916,7 @@ def putEmphasis():
     page.drawCentredString(
         14 + 219/2,
         178 + 3.6*17,
-        "Síndrome Gripal"
+        "Síndrome Respiratória"
     )
     page.drawCentredString(
         14 + 219/2,
@@ -937,9 +956,9 @@ def putEmphasis():
     yPos = 650
 
 
-# ## Perfil epidemiológico casos suspeitos
+# ## Perfil Epidemiológico Dos Casos De Síndrome Respiratória Não Específicada
 
-# In[145]:
+# In[ ]:
 
 
 def putSecOne():
@@ -955,7 +974,7 @@ def putSecOne():
     page.drawCentredString(
         pgDim['w']/2,
         yPos + 30,
-        "GRIPAL NÃO ESPECÍFICADA")
+        "RESPIRATÓRIA NÃO ESPECÍFICADA")
 
     # Subtitle
     page.setFont("Montserrat",14)
@@ -992,7 +1011,7 @@ def putSecOne():
 
 # ## Perfil epidemiológico casos confirmados
 
-# In[146]:
+# In[ ]:
 
 
 def putSecTwo():
@@ -1040,7 +1059,7 @@ def putSecTwo():
 
 # ## Distribuição bairros
 
-# In[155]:
+# In[ ]:
 
 
 def putSecThree():
@@ -1063,9 +1082,9 @@ def putSecThree():
     page.setFillColor(rlabColors.gray)
     page.setFont("Montserratbi",10)
     page.drawString(xPos, yPos, "Bairros")
-    page.drawCentredString(xPos + multiplier, yPos, "Casos suspeitos")
-    page.drawCentredString(xPos + 2*multiplier, yPos, "Baixa Probabilidade")
-    page.drawCentredString(xPos + 3*multiplier, yPos, "Casos confirmados")
+    page.drawCentredString(xPos + 2.7*multiplier, yPos, "Casos de síndrome respiratória não especificada")
+    # page.drawCentredString(xPos + 2*multiplier, yPos, "Baixa Probabilidade")
+    page.drawCentredString(xPos + 1.5*multiplier, yPos, "Casos confirmados")
 
     # Drawing neighboorhood in pdf
     page.setFont("Montserratb",10)
@@ -1073,23 +1092,23 @@ def putSecThree():
     for i in d2a_vNeighboorhood:
       yPos+= 17  
       page.drawString(xPos, yPos, i['Neighboorhood'])
-      page.drawCentredString(xPos + multiplier, yPos, str(i['qtdSuspect']))
-      page.drawCentredString(xPos + 2*multiplier, yPos, str(i['qtdAnalis']))
-      page.drawCentredString(xPos + 3*multiplier, yPos, str(i['qtdConf']))
+      page.drawCentredString(xPos + 2.7*multiplier, yPos, str(i['qtdSuspect']))
+      #page.drawCentredString(xPos + 2*multiplier, yPos, str(i['qtdAnalis']))
+      page.drawCentredString(xPos + 1.5*multiplier, yPos, str(i['qtdConf']))
 
     # Drawing total of analysis
     yPos += 5
     page.drawString(xPos, yPos+17, 'Total')
-    page.drawCentredString(xPos + multiplier, yPos + 17, str(sum(item['qtdSuspect'] for item in d2a_vNeighboorhood)))
-    page.drawCentredString(xPos + 2*multiplier, yPos + 17, str(sum(item['qtdAnalis'] for item in d2a_vNeighboorhood)))
-    page.drawCentredString(xPos + 3*multiplier, yPos + 17, str(sum(item['qtdConf'] for item in d2a_vNeighboorhood)))
+    page.drawCentredString(xPos + 2.7*multiplier, yPos + 17, str(sum(item['qtdSuspect'] for item in d2a_vNeighboorhood)))
+    #page.drawCentredString(xPos + 2*multiplier, yPos + 17, str(sum(item['qtdAnalis'] for item in d2a_vNeighboorhood)))
+    page.drawCentredString(xPos + 1.5*multiplier, yPos + 17, str(sum(item['qtdConf'] for item in d2a_vNeighboorhood)))
 
     yPos += 100
 
 
-# ## Fator de risco suspeitos
+# ## Síndrome Respiratória Não Especificada Por Fator De Risco
 
-# In[151]:
+# In[ ]:
 
 
 def putSecFour():
@@ -1101,12 +1120,12 @@ def putSecFour():
     page.drawCentredString(
         pgDim['w']/2,
         yPos,
-        "Síndrome Gripal não Especificada por Fator de Risco")
+        'SÍNDROME RESPIRATÓRIA NÃO ESPECIFICADA')
     yPos += 30
     page.drawCentredString(
         pgDim['w']/2,
         yPos,
-        "(suspeitos e confirmados — em porcentagem)")
+        'POR FATOR DE RISCO')
     yPos += 30
 
     # Draw graphic disease
@@ -1123,7 +1142,7 @@ def putSecFour():
 
 # ## Fator de risco confirmados
 
-# In[152]:
+# In[ ]:
 
 
 def putSecFive():
@@ -1135,12 +1154,12 @@ def putSecFive():
     page.drawCentredString(
         pgDim['w']/2,
         yPos,
-        "Casos confirmados por Fator de Risco")
+        'CASOS CONFIRMADOS POR FATOR DE RISCO')
     yPos += 30
     page.drawCentredString(
         pgDim['w']/2,
         yPos,
-        "(em porcentagem)")
+        "(EM PORCENTAGEM)")
     yPos += 30
 
     # Draw graphic disease
@@ -1159,7 +1178,7 @@ def putSecFive():
 
 # ## Semana epidemiológica
 
-# In[178]:
+# In[ ]:
 
 
 def putSecSix():
@@ -1171,9 +1190,14 @@ def putSecSix():
     page.drawCentredString(
         pgDim['w']/2,
         yPos,
-        "Síndrome Gripal não Especificada por semana epidemiológica")
+        'SÍNDROME RESPIRATÓRIA NÃO ESPECIFICADA')
     yPos += 30
-
+    page.drawCentredString(
+        pgDim['w']/2,
+        yPos,
+        'POR SEMANA EPIDEMIOLÓGICA')
+    yPos += 30
+    
     # Draw graphic disease
     _dist = 20
     page.drawImage(
@@ -1189,7 +1213,7 @@ def putSecSix():
 
 # ## Footer
 
-# In[171]:
+# In[ ]:
 
 
 def putFooter():
@@ -1204,7 +1228,7 @@ def putFooter():
 
 # ## Save
 
-# In[172]:
+# In[ ]:
 
 
 def save():
@@ -1213,9 +1237,9 @@ def save():
     page.save()  
 
 
-# ## Crescimento síndrome não especificada
+# ## Crescimento síndrome respiratória não especificada
 
-# In[180]:
+# In[ ]:
 
 
 def putSecSeven():
@@ -1227,7 +1251,7 @@ def putSecSeven():
   page.drawCentredString(
       pgDim['w']/2,
       yPos,
-      "CRESCIMENTO DE CASOS DE SÍNDROME GRIPAL")
+      "CRESCIMENTO DE CASOS DE SÍNDROME RESPIRATÓRIA")
   yPos += 30
   page.drawCentredString(
       pgDim['w']/2,
@@ -1249,7 +1273,7 @@ def putSecSeven():
 
 # ## Crescimento de casos confirmados
 
-# In[181]:
+# In[ ]:
 
 
 def putSecEight():
@@ -1279,7 +1303,7 @@ def putSecEight():
 
 # ## Get internal pdf
 
-# In[175]:
+# In[ ]:
 
 
 def getInternal(fileName):
@@ -1301,7 +1325,7 @@ def getInternal(fileName):
 
 # ## Get external pdf
 
-# In[176]:
+# In[ ]:
 
 
 def getExternal(fileName):
@@ -1316,7 +1340,7 @@ def getExternal(fileName):
 
 # # External PDF
 
-# In[164]:
+# In[ ]:
 
 
 fileName = 'pdfs/Boletim-Externo_{}-{}-{}.pdf'.format(DAY,MONTH_NAME,YEAR)
@@ -1327,11 +1351,17 @@ getExternal(fileName)
 
 # # Internal PDF
 
-# In[183]:
+# In[ ]:
 
 
 fileName = 'pdfs/Boletim-Interno_{}-{}-{}.pdf'.format(DAY,MONTH_NAME,YEAR)
 pgDim = {'w':792,'h':5600}
 
 getInternal(fileName)
+
+
+# In[ ]:
+
+
+
 
