@@ -7,7 +7,7 @@
 # 
 # > Note, you can remove all filters and others steps by replacing it by a simple loop.
 
-# In[1]:
+# In[ ]:
 
 
 # -*- coding: utf-8 -*-
@@ -16,7 +16,7 @@
 # ---
 # # Getting current date
 
-# In[2]:
+# In[ ]:
 
 
 # pytz.all_timezones to see all timezones
@@ -69,7 +69,7 @@ MONTH_NAME = getMonthName(MONTH, True)
 # # Starting logging
 # [See this tip 'bout logging](https://docs.python.org/3/library/logging.html#logrecord-attributes)
 
-# In[3]:
+# In[ ]:
 
 
 import logging as log
@@ -89,7 +89,7 @@ log.debug('Default timezone: {}'.format(BRASIL_TZ))
 
 # ## Login
 
-# In[4]:
+# In[ ]:
 
 
 from oauth2client.service_account import ServiceAccountCredentials as Credentials
@@ -108,7 +108,7 @@ GAUTH = Credentials.from_json_keyfile_name('credentials/nisis_credentials.json',
 GCLIENT = gspread.authorize(GAUTH)
 
 
-# In[5]:
+# In[ ]:
 
 
 log.info('Client acquired with success!')
@@ -116,7 +116,7 @@ log.info('Client acquired with success!')
 
 # ## Sheet Load
 
-# In[6]:
+# In[ ]:
 
 
 import pandas as pd
@@ -237,7 +237,7 @@ def getSheetValue(sheet_name, URL, gc, debug=False):
   return df
 
 
-# In[7]:
+# In[ ]:
 
 
 # Getting results
@@ -249,7 +249,7 @@ log.info('Tab "{}" oppened with success!'.format(sheetName))
 
 # # Image and Copy Imports
 
-# In[8]:
+# In[ ]:
 
 
 # To import image in reportlab. Images are Pillow formats or BytesIO
@@ -261,7 +261,7 @@ from copy import deepcopy as dp # dataframe creation and manipulation permanent
 
 # # Load Images
 
-# In[9]:
+# In[ ]:
 
 
 def alpha2white(img):
@@ -279,7 +279,7 @@ logo = ImageReader( Image.open('img/logo.png').rotate(180).transpose(Image.FLIP_
 # It's necessary rotate because PIL inverted.
 
 
-# In[10]:
+# In[ ]:
 
 
 log.info('Images loaded successfully')
@@ -293,7 +293,7 @@ log.info('Images loaded successfully')
 # =SUBTOTAL(103;A2:A2000) # Count visible rows
 # ```
 
-# In[11]:
+# In[ ]:
 
 
 def similar(word1, word2, accept=False, caseSensitive=False, method='BuiltIn'):
@@ -428,7 +428,8 @@ d2a_TofDunderI   = int(len(list(filter(None, d2a_vDunderI)))) # Total of deaths 
 
 # Total of Confirmed in ..
 d2a_TofCnursery  = applyFilter(df, d2a_vInterned&d2a_vConfirmed,'enfermaria','HospitalClassifier') # Confirmed in nursery
-d2a_TofCuti      = applyFilter(df, d2a_vConfirmed,'ti','HospitalClassifier') # Check why there's a case without be interned
+d2a_TofCuti      = len(list(filter(None, df.loc[d2a_vConfirmed, 'HospitalClassifier']=='uti'))) # Check why there's a case without be interned
+d2a_TofCcti      = len(list(filter(None, df.loc[d2a_vConfirmed, 'HospitalClassifier']=='cti'))) # Check why there's a case without be interned
 d2a_TofCrecover  = applyFilter(df, d2a_vConfirmed,'recuperado','SituationOfConfirmed')
 d2a_TofChome     = applyFilter(df, d2a_vConfirmed,'amento domiciliar','SituationOfConfirmed')
 d2a_TofCdead     = applyFilter(df, d2a_vConfirmed,'óbito','SituationOfConfirmed')
@@ -877,12 +878,14 @@ def putEmphasis():
     dots(page, 330, yPos + 187, 12, 4)
     dots(page, 330, yPos + 187, 16, 4)
     dots(page, 330, yPos + 187, 20, 4)
+    dots(page, 330, yPos + 187, 24, 4)
     page.setFont('Montserrat',32)
     page.drawCentredString(395, yPos + 240, str(d2a_TofCrecover))
     page.drawCentredString(395, yPos + 270, str(d2a_TofChome))
     page.drawCentredString(395, yPos + 300, str(d2a_TofCdead))
     page.drawCentredString(395, yPos + 335, str(d2a_TofCnursery))
     page.drawCentredString(395, yPos + 365, str(d2a_TofCuti))
+    page.drawCentredString(395, yPos + 395, str(d2a_TofCcti))
     page.setFont('Montserrat',12)
     page.setFillColor(rlabColors.gray)
     page.drawString(428, yPos + 230, 'recuperado(s)')
@@ -890,7 +893,8 @@ def putEmphasis():
     page.drawString(448, yPos + 268, 'monitorado')               #
     page.drawString(428, yPos + 293, 'óbito(s) confirmado(os)')
     page.drawString(428, yPos + 325, 'hospitalizado(s) em enfermaria')
-    page.drawString(428, yPos + 355, 'hospitalizado(s) em CTI em BH')
+    page.drawString(428, yPos + 355, 'hospitalizado(s) em UTI em Itabira')
+    page.drawString(428, yPos + 385, 'hospitalizado(s) em CTI em BH')
 
     # Rectangles and DOTS (RIGHT)
     page.setFillColor(myColors['GreenD'])
