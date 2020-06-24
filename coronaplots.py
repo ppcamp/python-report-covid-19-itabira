@@ -24,27 +24,27 @@ from pytz import timezone # Defaul timezone it's ahead of Brasil(+)
 from datetime import datetime, date
 
 def isMonday():
-  return date.today().isoweekday() == 1
+    return date.today().isoweekday() == 1
 
 # Note that changing linux localtime, doesn't affect Python
 BRASIL_TZ = timezone('America/Campo_Grande')
 DAY, MONTH, YEAR = datetime.now(BRASIL_TZ).strftime("%d %m %Y").split()
 
 def getMonthName(month, startUpper=False):
-  '''
-  Need it when execute in different system's locale.
-  
-  Parameter
-  ---------
-  startUpper: (boolean)
+    '''
+    Need it when execute in different system's locale.
+
+    Parameter
+    ---------
+    startUpper: (boolean)
     Force to fst letter be upper.
 
-  Return
-  ------
+    Return
+    ------
     (string) Month's names.
-  '''
-  month = int(month)
-  monthName = ['janeiro',
+    '''
+    month = int(month)
+    monthName = ['janeiro',
                'fevereiro',
                'março',
                'abril',
@@ -56,11 +56,11 @@ def getMonthName(month, startUpper=False):
                'outubro',
                'novembro',
                'dezembro'
-  ]
-  month = monthName[month-1]
-  m_up = month[0].upper() + month[1:]
+    ]
+    month = monthName[month-1] if month > 0 else monthName[-1]
+    m_up = month[0].upper() + month[1:]
 
-  return month if not startUpper else m_up 
+    return month if not startUpper else m_up 
 
 # Get month's name
 MONTH_NAME = getMonthName(MONTH, True)
@@ -77,7 +77,7 @@ log.basicConfig(
     format='[%(asctime)s] : %(levelname)s: %(funcName)s : %(message)s', 
     datefmt='%H:%M:%S',
     filename='logs/LOG_{}-{}-{}.log'.format(YEAR,MONTH,DAY),
-    level=log.INFO)
+    level=log.DEBUG)
 log.info('Logging created w/ success!')
 log.debug('Default timezone: {}'.format(BRASIL_TZ))
 
@@ -96,11 +96,8 @@ from oauth2client.service_account import ServiceAccountCredentials as Credential
 import gspread # Sheets
 
 # Login Constants
-SCOPE = [
-         'https://spreadsheets.google.com/feeds', 
-         'https://www.googleapis.com/auth/drive'
-]
-URL = 'https://docs.google.com/spreadsheets/d/1YERxbIO0VgnVLElEgFxsv_Hr2ra6nHuPVUUGx6OVds4/edit?usp=sharing'
+SCOPE = ['https://www.googleapis.com/auth/spreadsheets.readonly']
+URL = 'https://docs.google.com/spreadsheets/d/1pkzSpLBtlzv4J_H8W9o20dWHB7MnkoStXL5h73NHkAs/edit?usp=sharing'
 
 # Create an Client
 GAUTH = Credentials.from_json_keyfile_name('credentials/nisis_credentials.json',SCOPE)
@@ -124,117 +121,119 @@ from numpy import nan as NaN
 import numpy as np
 
 def getSheetsNames(URL, gc):
-  '''
-  Get all tab's names from url (sheet)
-  
-  Parameters
-  ----------
-  URL: (str)
+    '''
+    Get all tab's names from url (sheet)
+
+    Parameters
+    ----------
+    URL: (str)
     Url's sheet
-  gc: (GoogleClient)
+    gc: (GoogleClient)
     Google client from gspread autenticated.
 
-  Return
-  ------
+    Return
+    ------
     (list) Sheet's tab names.
-  '''
-  workSheets = GCLIENT.open_by_url(URL)
-  sheetsNames = [i.title for i in workSheets.worksheets()] # sheets names
-  return sheetsNames
+    '''
+    workSheets = GCLIENT.open_by_url(URL)
+    sheetsNames = [i.title for i in workSheets.worksheets()] # sheets names
+    return sheetsNames
 
 
 def getSheetValue(sheet_name, URL, gc, debug=False):
-  '''
-  Get pandas DF from sheet_name in WorkSheets. 
-  
-  Parameters
-  ----------
-  sheet_name: (string)
+    '''
+    Get pandas DF from sheet_name in WorkSheets. 
+
+    Parameters
+    ----------
+    sheet_name: (string)
     Name of sheet
 
-  Return
-  ------
-  (DataFrame) 2Dimensional sheet got it from one tab.
+    Return
+    ------
+    (DataFrame) 2Dimensional sheet got it from one tab.
 
-  Examples
-  --------
+    Examples
+    --------
     >> all_dfs = list(map(getSheetValue,sheets))
     >> list(map(lambda x: x.columns, all_dfs) )
     >> df = pd.concat(all_dfs)
-  '''
-  wb    = GCLIENT.open_by_url(URL) # client open this url
-  sheet = wb.worksheet(sheet_name) # get value(tab) settled from cell above
-  data  = sheet.get_all_values() # get csv content from spreadsheet
-  df    = pd.DataFrame(data) # convert csv into DataFrame 
+    '''
+    wb    = GCLIENT.open_by_url(URL) # client open this url
+    sheet = wb.worksheet(sheet_name) # get value(tab) settled from cell above
+    data  = sheet.get_all_values() # get csv content from spreadsheet
+    df    = pd.DataFrame(data) # convert csv into DataFrame 
 
-  df.columns = df.iloc[0] # Remove Id's columns (They're in fst row)
-  df = df.iloc[1:] # Ignore fst row
-  
-  # If we have an empty column
-  df.dropna(axis='columns')
-  # If we have an empty row
-  df.dropna(axis='rows')
-  # Drop fst column (Index)
-  df.drop(df.columns[0], axis=1, inplace=True)
+    df.columns = df.iloc[0] # Remove Id's columns (They're in fst row)
+    df = df.iloc[1:] # Ignore fst row
 
-  if debug:
-    log.debug('Sem situação: ', len(list(
-      filter(lambda x: type(x) is not str, df['Selecione a situação:']))))
+    # If we have an empty column
+    df.dropna(axis='columns')
+    # If we have an empty row
+    df.dropna(axis='rows')
+    # Drop fst column (Index)
+    df.drop(df.columns[0], axis=1, inplace=True)
+
+    if debug:
+        log.debug('Sem situação: ', len(list(
+            filter(lambda x: type(x) is not str, df['Selecione a situação:']))))
 
 
-  ############################  Treating data ##################################
-  # Renaming columns
-  #   We rename column by column, 'cause if we do in this way, we won't have
-  #   problems with insertion of new columns. If we made this by replacing columns
-  #   list to a new one.
-  df.rename(columns={'Selecione a situação:': "Situation"}, inplace=True)
-  df.rename(columns={'Escolha a situação do caso confirmado:':"SituationOfConfirmed"}, inplace=True)
-  df.rename(columns={'Identificador:': "Id"}, inplace=True)
-  df.rename(columns={'Está monitorado pela central de vigilância da saúde? ': 'Monitoring'}, inplace=True)
-  df.rename(columns={'Houve internação?':'IsInterned'}, inplace=True)
-  df.rename(columns={'Sexo:':'Gender'}, inplace=True)
-  df.rename(columns={'Idade:':'Age'}, inplace=True)
-  df.rename(columns={'Bairro:':'Neighboorhood'}, inplace=True)
-  df.rename(columns={'Leito:':'HospitalClassifier'}, inplace=True)
-  df.rename(columns={'Escolha a situação do caso descartado:':'Discarted'}, inplace=True)
-  df.rename(columns={'Fatores de risco:':'RiskFactors'}, inplace=True)
-  df.rename(columns={'Semana epidemiológica':'EpidemicWeek'}, inplace=True)
+    ############################  Treating data ##################################
+    # Renaming columns
+    #   We rename column by column, 'cause if we do in this way, we won't have
+    #   problems with insertion of new columns. If we made this by replacing columns
+    #   list to a new one.
+    df.rename(columns={'Selecione a situação:': "Situation"}, inplace=True)
+    df.rename(columns={'Escolha a situação do caso confirmado:':"SituationOfConfirmed"}, inplace=True)
+    #df.rename(columns={'Houve internação?': "Id"}, inplace=True)
+    df.rename(columns={'Está monitorado pela central de vigilância da saúde? ': 'Monitoring'}, inplace=True)
+    df.rename(columns={'Houve internação?':'IsInterned'}, inplace=True)
+    df.rename(columns={'Sexo:':'Gender'}, inplace=True)
+    df.rename(columns={'Idade:':'Age'}, inplace=True)
+    df.rename(columns={'Bairro:':'Neighboorhood'}, inplace=True)
+    df.rename(columns={'Leito:':'HospitalClassifier'}, inplace=True)
+    df.rename(columns={'Escolha a situação do caso descartado:':'Discarted'}, inplace=True)
+    df.rename(columns={'Fatores de risco:':'RiskFactors'}, inplace=True)
+    df.rename(columns={'Semana epidemiológica':'EpidemicWeek'}, inplace=True)
+    df.rename(columns={'Data da alta:':'HospitalDate'}, inplace=True)
 
-  # Remove where Situation is empty -- In this dataframe, empty means that are duplicate
-  _filter = df['Situation'] != ''
-  df = df[_filter]
-  
-   # Convert to lower. We do this to minimize possible errors when making a string compare.
-  df['Situation'] = df['Situation'].str.lower()
-  df['Monitoring'] = df['Monitoring'].str.lower()
-  df['SituationOfConfirmed'] = df['SituationOfConfirmed'].str.lower()
-  df['HospitalClassifier'] = df['HospitalClassifier'].str.lower()
-  df['Gender'] = df['Gender'].str.lower()
-  df['RiskFactors'] = df['RiskFactors'].str.lower()
-    
-  # Fix: _nbh (empty and Spaced)
-  df['Neighboorhood'] = df['Neighboorhood'].str.strip() # Spaced
-  _filter = df['Neighboorhood'] == ''
-  df.loc[_filter, 'Neighboorhood'] = 'Sem Bairro' # Empty
+    # Remove where Situation is empty -- In this dataframe, empty means that are duplicate
+    _filter = df['Situation'] != ''
+    df = df[_filter]
 
-  # Fix: Convert str ages to int
-  _filter = df['Age'] == ''
-  df.loc[_filter, 'Age'] = 0 # put 0 in empty ages
-  df['Age'] = df['Age'].apply(lambda x: int(x)) # convert to int
+    # Convert to lower. We do this to minimize possible errors when making a string compare.
+    df['Situation'] = df['Situation'].str.lower()
+    df['Monitoring'] = df['Monitoring'].str.lower()
+    df['SituationOfConfirmed'] = df['SituationOfConfirmed'].str.lower()
+    df['HospitalClassifier'] = df['HospitalClassifier'].str.lower()
+    df['Gender'] = df['Gender'].str.lower()
+    df['RiskFactors'] = df['RiskFactors'].str.lower()
+    df['IsInterned'] = df['IsInterned'].str.lower()
 
-  # Fix: RiskFactors (empty and Spaced)
-  df['RiskFactors'] = df['RiskFactors'].str.strip() # Spaced
-  _filter = df['RiskFactors'] == ''
-  df.loc[_filter, 'RiskFactors'] = 'Não tem' # Empty
+    # Fix: _nbh (empty and Spaced)
+    df['Neighboorhood'] = df['Neighboorhood'].str.strip() # Spaced
+    _filter = df['Neighboorhood'] == ''
+    df.loc[_filter, 'Neighboorhood'] = 'Sem Bairro' # Empty
 
-  # Fix: Put N/A identifier in EpidemicWeek
-  _filter = np.array( df['EpidemicWeek'].str.isdigit(), dtype=np.bool)
-  df.loc[~_filter, 'EpidemicWeek'] = '#N/A' # Empty or #N/A
-  df.loc[_filter, 'EpidemicWeek'] = df.loc[_filter, 'EpidemicWeek'].apply(lambda x: int(x)) # Convert to int where is a number
+    # Fix: Convert str ages to int
+    _filter = df['Age'] == ''
+    df.loc[_filter, 'Age'] = 0 # put 0 in empty ages
+    df['Age'] = df['Age'].apply(lambda x: int(x)) # convert to int
 
-  df = df.reset_index(drop=True) # Drop removes old indexation 
+    # Fix: RiskFactors (empty and Spaced)
+    df['RiskFactors'] = df['RiskFactors'].str.strip() # Spaced
+    _filter = df['RiskFactors'] == ''
+    df.loc[_filter, 'RiskFactors'] = 'Não tem' # Empty
 
-  return df
+    # Fix: Put N/A identifier in EpidemicWeek
+    _filter = np.array( df['EpidemicWeek'].str.isdigit(), dtype=np.bool)
+    df.loc[~_filter, 'EpidemicWeek'] = '#N/A' # Empty or #N/A
+    df.loc[_filter, 'EpidemicWeek'] = df.loc[_filter, 'EpidemicWeek'].apply(lambda x: int(x)) # Convert to int where is a number
+
+    df = df.reset_index(drop=True) # Drop removes old indexation 
+
+    return df
 
 
 # In[ ]:
@@ -265,11 +264,11 @@ from copy import deepcopy as dp # dataframe creation and manipulation permanent
 
 
 def alpha2white(img):
-  # Create a white rgb background
-  _img = Image.new("RGBA", img.size, "WHITE") 
-  _img.paste(img, (0, 0), img)
-  _img.convert('RGB')
-  return _img.transpose(Image.FLIP_LEFT_RIGHT)
+    # Create a white rgb background
+    _img = Image.new("RGBA", img.size, "WHITE") 
+    _img.paste(img, (0, 0), img)
+    _img.convert('RGB')
+    return _img.transpose(Image.FLIP_LEFT_RIGHT)
 
 # Draw method aim's to use ImageReader or path to object
 # we don't use here, 'cause of black background if alpha is 1
@@ -371,11 +370,10 @@ def applyFilter(df, l, word, col):
     '''
 
     def getValue(x):
-      if type(x) is not str:
-        return 0
-      else:
-        return similar(x,word,0.7)
-
+        if type(x) is not str:
+            return 0
+        else:
+            return similar(x,word,0.7)
     return int(len(list( filter(getValue, df.loc[l, col]) )))
 
 
@@ -396,6 +394,7 @@ AGES = [
     '>= 60'
 ]
 
+# Risk factors
 DISEASES = [
     'Doenças respiratórias crônicas descompensadas',
     'Doenças cardíacas crônicas',
@@ -408,59 +407,6 @@ DISEASES = [
     'Outros'
 ]
 
-# Vector of positions in dataframe corresponding to situations
-d2a_vConfirmed   = np.array( df['Situation']=='confirmado', dtype=np.bool )
-d2a_vDunderI     = np.array( df['Monitoring']=='obito em investigação', dtype=np.bool ) # deaths under investigation
-d2a_vSuspect     = np.array( df['Situation']=='suspeito', dtype=np.bool ) | d2a_vDunderI
-d2a_vAnalysis    = np.array( df['Situation']=='baixa probabilidade', dtype=np.bool )
-d2a_vDiscarted   = np.array( df['Situation']=='descartado', dtype=np.bool )
-d2a_vOsituations = ~(d2a_vConfirmed | d2a_vDunderI | d2a_vSuspect | d2a_vAnalysis | d2a_vDiscarted) # other situations
-d2a_vInterned    = np.array( df['Monitoring']=='internado', dtype=np.bool ) # That still are interned
-d2a_vMonitoring  = np.array( df['Monitoring']=='sim', dtype=np.bool ) # Note that we don't count d2a_Interned
-
-# Total of ..
-d2a_TofConfirmed = int(len(list(filter(None, d2a_vConfirmed))))
-d2a_TofDiscarted = int(len(list(filter(None, d2a_vDiscarted))))
-d2a_TofSuspect   = int(len(list(filter(None, d2a_vSuspect))))
-d2a_TofAnalysis  = int(len(list(filter(None, d2a_vAnalysis))))
-d2a_TofInterned  = int(len(list(filter(None, d2a_vInterned))))
-d2a_TofDunderI   = int(len(list(filter(None, d2a_vDunderI)))) # Total of deaths under inestigation
-
-# Total of Confirmed in ..
-d2a_TofCnursery  = applyFilter(df, d2a_vInterned&d2a_vConfirmed,'enfermaria','HospitalClassifier') # Confirmed in nursery
-d2a_TofCuti      = len(list(filter(None, df.loc[d2a_vConfirmed, 'HospitalClassifier']=='uti'))) # Check why there's a case without be interned
-d2a_TofCcti      = len(list(filter(None, df.loc[d2a_vConfirmed, 'HospitalClassifier']=='cti'))) # Check why there's a case without be interned
-d2a_TofCrecover  = applyFilter(df, d2a_vConfirmed,'recuperado','SituationOfConfirmed')
-d2a_TofChome     = applyFilter(df, d2a_vConfirmed,'amento domiciliar','SituationOfConfirmed')
-d2a_TofCdead     = applyFilter(df, d2a_vConfirmed,'óbito','SituationOfConfirmed')
-
-# Total of Suspects monitoring
-d2a_TofSmonitor  = int(len(list( filter(None, d2a_vMonitoring & (d2a_vSuspect|d2a_vInterned) ))))
-
-# Total of Discarted deaths
-d2a_TofDdeaths   = applyFilter(df, d2a_vDiscarted,'óbito','Discarted')
-
-# Total of Suspects in hospital (uti or nursery)
-#    This is a peculiar caracteristic of this sheet. The Interned indicates that still in.
-d2a_TofSnursery   = applyFilter(df, d2a_vInterned & d2a_vSuspect,'enfermaria','HospitalClassifier')
-d2a_TofSuti       = applyFilter(df, d2a_vInterned & d2a_vSuspect,'uti','HospitalClassifier')
-
-# Total of Analysis where gender is ..
-d2a_TofAfemale    = applyFilter(df, d2a_vAnalysis,'f','Gender')
-d2a_TofAmale      = applyFilter(df, d2a_vAnalysis,'m','Gender')
-
-# Total of Suspects were gender is ..
-d2a_TofSfemale    = applyFilter(df, d2a_vSuspect,'f','Gender')
-d2a_TofSmale      = applyFilter(df, d2a_vSuspect,'m','Gender')
-
-# Total of Confirmed were gender is ..
-d2a_TofCfemale    = applyFilter(df, d2a_vConfirmed,'f','Gender')
-d2a_TofCmale      = applyFilter(df, d2a_vConfirmed,'m','Gender')
-
-# Create Vectors of Ages corresponding of situations
-d2a_vSage         = [0]*len(AGES) # Suspect ages
-d2a_vCage         = [0]*len(AGES) # Confirmed
-d2a_vAage         = [0]*len(AGES) # Analysis
 
 # Give a vector position according to AGES list
 def ageRange(age):
@@ -477,22 +423,70 @@ def ageRange(age):
 def percentage(number, total):
     return round(number*100/total, 1)
 
-# Total of Confirmed according with diseases (in percentage)
-d2a_TofCdiseases  = [applyFilter(df, d2a_vConfirmed, it,'RiskFactors') for it in DISEASES]
-_aux              = sum(d2a_TofCdiseases)
-d2a_TofCdiseases  = [percentage(it,_aux) for it in d2a_TofCdiseases]
+
+# Vector of positions in dataframe corresponding to situations
+d2a_vConfirmed = np.array( df['Situation']=='confirmado', dtype=np.bool )
+d2a_vDunderI = np.array( df['Situation']=='obito em investigação', dtype=np.bool ) # deaths under investigation
+d2a_vSuspect = np.array( df['Situation']=='suspeito', dtype=np.bool ) | d2a_vDunderI
+d2a_vDiscarted = np.array( df['Situation']=='descartado', dtype=np.bool )
+d2a_vCinterned = np.array( df['SituationOfConfirmed']=='internado', dtype=np.bool ) # Only for those confirmed interned
+# After talk to Patrícia, she told me that she itself change those ones who are
+# interned, so, we actually must ignore those informations in google forms, and attempt
+# just to search of values in fields 
+# Only for those suspects interned
+d2a_vSinterned = np.array( df['Monitoring']=='internado', dtype=np.bool ) & d2a_vSuspect # We can't use loc, cause it will raise only true ones
+d2a_vHospitals = np.array( df['Hospital'].str.len() > 4, dtype=np.bool) # Find hospitals with str lenght > 4 (Belo Horizonte)
+d2a_vMonitoring = np.array(df['Monitoring']=='sim', dtype=np.bool ) # Those that are not in hospital
+
+# Total of ..
+d2a_TofConfirmed = np.count_nonzero(d2a_vConfirmed) # Confirmed cases
+d2a_TofDiscarted = np.count_nonzero(d2a_vDiscarted) # Discarted cases
+d2a_TofSuspect = np.count_nonzero(d2a_vSuspect)     # Suspects cases
+d2a_TofDunderI = np.count_nonzero(d2a_vDunderI)     # Total of deaths under inestigation
+
+# Total of Confirmed in ..
+_vBH, _vITA = d2a_vCinterned&d2a_vHospitals, d2a_vCinterned&~d2a_vHospitals               # Auxiliar vectors of hospital and Confirmed interneds
+d2a_TofCnurseryBH = applyFilter(df, _vBH,'enfermaria','HospitalClassifier')               #  in nursery in BH
+d2a_TofCnurseryITA = applyFilter(df, _vITA,'enfermaria','HospitalClassifier')             #  in nursery in ita
+d2a_TofCuti = applyFilter(df, _vITA,'ti','HospitalClassifier')                            #  in uti in Ita
+d2a_TofCcti = applyFilter(df, _vBH,'ti','HospitalClassifier')                             #  in uti in BH
+d2a_TofCrecover = applyFilter(df, d2a_vConfirmed,'recuperado','SituationOfConfirmed')     #  that recovered
+d2a_TofChome = applyFilter(df, d2a_vConfirmed,'amento domiciliar','SituationOfConfirmed') #  that are in home
+d2a_TofCdead = applyFilter(df, d2a_vConfirmed,'óbito','SituationOfConfirmed')             #  that are dead
+d2a_TofCfemale = applyFilter(df, d2a_vConfirmed,'f','Gender')                             #  were gender is
+d2a_TofCmale = applyFilter(df, d2a_vConfirmed,'m','Gender')                               #  were gender is
+d2a_TofCdiseases = [applyFilter(df, d2a_vConfirmed, it,'RiskFactors') for it in DISEASES]
+_aux = sum(d2a_TofCdiseases)
+d2a_TofCdiseases = [percentage(it,_aux) for it in d2a_TofCdiseases]                       #  according with diseases (in percentage)
+
+# Total of Suspects in ...
+d2a_TofSmonitor = np.count_nonzero(d2a_vMonitoring & d2a_vSuspect)                  # monitoring
+d2a_TofSnursery = applyFilter(df, d2a_vSinterned,'enfermaria','HospitalClassifier') # in hospital (nursery)
+d2a_TofSuti = applyFilter(df, d2a_vSinterned,'uti','HospitalClassifier')            # in hospital (uti)
+d2a_TofSfemale = applyFilter(df, d2a_vSuspect,'f','Gender')                         # were gender is
+d2a_TofSmale = applyFilter(df, d2a_vSuspect,'m','Gender')                           # were gender is
+
 
 # Total of (Suspects and Confirmed) according with diseases (in percentage)
 d2a_TofCSdiseases = [applyFilter(df, d2a_vConfirmed | d2a_vSuspect, it,'RiskFactors') for it in DISEASES]
 _aux              = sum(d2a_TofCSdiseases)
 d2a_TofCSdiseases = [percentage(it,_aux) for it in d2a_TofCSdiseases]
 
+
+# Total of Discarted deaths
+d2a_TofDdeaths   = applyFilter(df, d2a_vDiscarted,'óbito','Discarted')
+
+
+
+# Create Vectors of Ages corresponding of situations
+d2a_vSage         = [0]*len(AGES) # Suspect ages
+d2a_vCage         = [0]*len(AGES) # Confirmed
+
 # Week
 d2a_vCSweekName = list(set(df['EpidemicWeek']))
 d2a_vCSweekName.remove('#N/A') # With this we force '#N/A' to be the first in list
 d2a_vCSweekName = ['#N/A'] + d2a_vCSweekName # we use this trick to force positions below
 d2a_vCSweekValue = [0]*len(d2a_vCSweekName) # same idea as ages
-
 
 # Populate vectors of week and ages
 for it in df.index:
@@ -511,42 +505,85 @@ for it in df.index:
             _week = 0
         # Note that week value to"1'\n".strip()ok both situations.
         d2a_vCSweekValue[_week-9 if _week>0 else 0] += 1
-        
-    if d2a_vAnalysis[it]:
-        d2a_vAage[ ageRange(df.loc[it,'Age']) ] += 1
+
+
         
 # Now we must access a stored data which refers to oldiest reports
 _cdate = '{}-{}-{}'.format(YEAR, MONTH, DAY)
 d2a_dfCStimeline = pd.read_csv('others/brief_reports_data.csv')
 
 if isMonday(): 
-  if _cdate in d2a_dfCStimeline['Data'].tolist():
-    _pos = d2a_dfCStimeline['Data']==_cdate
-    d2a_dfCStimeline.loc[_pos, 'Sindrome'] = np.int64(d2a_TofSuspect)
-    d2a_dfCStimeline.loc[_pos, 'Covid'] = np.int64(d2a_TofConfirmed)
-    
-  else:
-    d2a_dfCStimeline = d2a_dfCStimeline.append({
-        'Data': _cdate,
-        'Sindrome': np.int64(d2a_TofSuspect),
-        'Covid': np.int64(d2a_TofConfirmed)
-        },
-        ignore_index=True)
-  d2a_dfCStimeline.to_csv('others/brief_reports_data.csv', index=False)
+    if _cdate in d2a_dfCStimeline['Data'].tolist():
+        _pos = d2a_dfCStimeline['Data']==_cdate
+        d2a_dfCStimeline.loc[_pos, 'Sindrome'] = np.int64(d2a_TofSuspect)
+        d2a_dfCStimeline.loc[_pos, 'Covid'] = np.int64(d2a_TofConfirmed)
 
+    else:
+        d2a_dfCStimeline = d2a_dfCStimeline.append({
+            'Data': _cdate,
+            'Sindrome': np.int64(d2a_TofSuspect),
+            'Covid': np.int64(d2a_TofConfirmed)
+            },
+            ignore_index=True)
+        d2a_dfCStimeline.to_csv('others/brief_reports_data.csv', index=False)
 
-# In[ ]:
 
 
 # Where don't have an NHD the type is NaN, due that, we can't access it
 _nbh = []
 for i in set(df['Neighboorhood']): 
-  conf  = len(list(filter(lambda x: x, df.loc[d2a_vConfirmed, 'Neighboorhood']==i)))
-  susp  = len(list(filter(lambda x: x, df.loc[d2a_vSuspect, 'Neighboorhood']==i)))
-  #anali = len(list(filter(lambda x: x, df.loc[d2a_vAnalysis, 'Neighboorhood']==i)))
-  _nbh.append({ 'Neighboorhood': i, 'qtdSuspect': susp, 'qtdConf': conf})#, 'qtdAnalis': anali})
+    conf  = len(list(filter(lambda x: x, df.loc[d2a_vConfirmed, 'Neighboorhood']==i)))
+    susp  = len(list(filter(lambda x: x, df.loc[d2a_vSuspect, 'Neighboorhood']==i)))
+    #anali = len(list(filter(lambda x: x, df.loc[d2a_vAnalysis, 'Neighboorhood']==i)))
+    _nbh.append({ 'Neighboorhood': i, 'qtdSuspect': susp, 'qtdConf': conf})#, 'qtdAnalis': anali})
 # Sort by ascending order
 d2a_vNeighboorhood = sorted(_nbh, key=lambda k: k['qtdConf'], reverse=True)
+
+
+# In[ ]:
+
+
+# Logs
+log.debug('Data: df.shape[0] → {}'.format(df.shape[0]))
+log.info('Data analysis')
+# Inserting all data in log
+log.debug('Data: AGES → {}'.format(AGES))
+log.debug('Data: DISEASES → {}'.format(DISEASES))
+log.debug('Data: d2a_vConfirmed → {}'.format(d2a_vConfirmed))
+log.debug('Data: d2a_vDunderI → {}'.format(d2a_vDunderI))
+log.debug('Data: d2a_vSuspect → {}'.format(d2a_vSuspect))
+log.debug('Data: d2a_vDiscarted → {}'.format(d2a_vDiscarted))
+log.debug('Data: d2a_vCinterned → {}'.format(d2a_vCinterned))
+log.debug('Data: d2a_vSinterned → {}'.format(d2a_vSinterned))
+log.debug('Data: d2a_vMonitoring → {}'.format(d2a_vMonitoring))
+log.debug('Data: d2a_TofConfirmed → {}'.format(d2a_TofConfirmed))
+log.debug('Data: d2a_TofDiscarted → {}'.format(d2a_TofDiscarted))
+log.debug('Data: d2a_TofSuspect → {}'.format(d2a_TofSuspect))
+log.debug('Data: d2a_TofDunderI → {}'.format(d2a_TofDunderI))
+log.debug('Data: d2a_TofCnurseryBH → {}'.format(d2a_TofCnurseryBH))
+log.debug('Data: d2a_TofCnurseryITA → {}'.format(d2a_TofCnurseryITA))
+log.debug('Data: d2a_TofCuti → {}'.format(d2a_TofCuti))
+log.debug('Data: d2a_TofCcti → {}'.format(d2a_TofCcti))
+log.debug('Data: d2a_TofCrecover → {}'.format(d2a_TofCrecover))
+log.debug('Data: d2a_TofChome → {}'.format(d2a_TofChome))
+log.debug('Data: d2a_TofCdead → {}'.format(d2a_TofCdead))
+log.debug('Data: d2a_TofSmonitor → {}'.format(d2a_TofSmonitor))
+log.debug('Data: d2a_TofDdeaths → {}'.format(d2a_TofDdeaths))
+log.debug('Data: d2a_TofSnursery → {}'.format(d2a_TofSnursery))
+log.debug('Data: d2a_TofSuti → {}'.format(d2a_TofSuti))
+log.debug('Data: d2a_TofSfemale → {}'.format(d2a_TofSfemale))
+log.debug('Data: d2a_TofSmale → {}'.format(d2a_TofSmale))
+log.debug('Data: d2a_TofCfemale → {}'.format(d2a_TofCfemale))
+log.debug('Data: d2a_TofCmale → {}'.format(d2a_TofCmale))
+log.debug('Data: d2a_vSage → {}'.format(d2a_vSage))
+log.debug('Data: d2a_vCage → {}'.format(d2a_vCage))
+log.debug('Data: d2a_TofCdiseases → {}'.format(d2a_TofCdiseases))
+log.debug('Data: d2a_TofCSdiseases → {}'.format(d2a_TofCSdiseases))
+log.debug('Data: d2a_vCSweekName → {}'.format(d2a_vCSweekName))
+log.debug('Data: d2a_vCSweekValue → {}'.format(d2a_vCSweekValue))
+log.debug('Data: d2a_dfCStimeline.shape[0] → {}'.format(d2a_dfCStimeline.shape[0]))
+log.debug('Data: isMonday → {}'.format(isMonday()))
+log.debug('Data: d2a_vNeighboorhood → {}'.format(d2a_vNeighboorhood))
 
 
 # # Plots
@@ -561,91 +598,102 @@ from io import BytesIO # Image buff
 sns.set_style('darkgrid')
 
 def barPlot(x,y, siz, palette="Oranges"):
-  fig = plt.figure( figsize=siz )
-  
-  plt.tick_params(
+    fig = plt.figure( figsize=siz )
+
+    plt.tick_params(
       axis='x',          # changes apply to the x-axis
       which='both',      # both major and minor ticks are affected
       bottom=False,      # ticks along the bottom edge are off
       labelbottom=False) # labels along the bottom edge are off
-  ax = sns.barplot(x=x, y=y, palette=palette)
-  
-  _currSpace = ax.get_xticks()
-  _currSpace = _currSpace[1] - _currSpace[0]
-  plt.xticks(np.arange(0, max(x)+_currSpace, _currSpace))
+    ax = sns.barplot(x=x, y=y, palette=palette)
 
-  # Create annotions marks using total amount of infected
-  maxX = max(x)
-  _y = 0
-  for i in x:
-      ax.text(i + maxX/100, _y, str(i))
-      _y+=1
-  
-  fig.tight_layout() # Remove extra paddings
-  # Convert fig img to buffer img
-  buff =  BytesIO()
-  fig.savefig(buff, format='PNG')
-  buff.seek(0)
-  buff = Image.open(buff).rotate(180).transpose(Image.FLIP_LEFT_RIGHT)
-  return ImageReader( buff )
+    _currSpace = ax.get_xticks()
+    _currSpace = _currSpace[1] - _currSpace[0]
+    plt.xticks(np.arange(0, max(x)+_currSpace, _currSpace))
+
+    # Create annotions marks using total amount of infected
+    maxX = max(x)
+    _y = 0
+    for i in x:
+        ax.text(i + maxX/100, _y, str(i))
+        _y+=1
+
+    fig.tight_layout() # Remove extra paddings
+    # Convert fig img to buffer img
+    buff =  BytesIO()
+    fig.savefig(buff, format='PNG')
+    buff.seek(0)
+    buff = Image.open(buff).rotate(180).transpose(Image.FLIP_LEFT_RIGHT)
+    return ImageReader( buff )
 
 
 def linePlot(y,x, siz,palette="Oranges"):
-  fig = plt.figure( figsize=siz )
-  plt.plot(x,y, marker='o', color='darkred', linewidth=2, markersize=12)
-  # sns.set_palette(palette)
+    fig = plt.figure( figsize=siz )
+    plt.plot(x,y, marker='o', color='darkred', linewidth=2, markersize=12)
+    # sns.set_palette(palette)
 
-  fig.tight_layout() # Remove extra paddings
-  # Convert fig img to buffer img
-  buff =  BytesIO()
-  fig.savefig(buff, format='PNG')
-  buff.seek(0)
-  buff = Image.open(buff).rotate(180).transpose(Image.FLIP_LEFT_RIGHT)
-  return ImageReader( buff )
+    fig.tight_layout() # Remove extra paddings
+    # Convert fig img to buffer img
+    buff =  BytesIO()
+    fig.savefig(buff, format='PNG')
+    buff.seek(0)
+    buff = Image.open(buff).rotate(180).transpose(Image.FLIP_LEFT_RIGHT)
+    return ImageReader( buff )
 
 
 def linePlot2(df, y, siz, ftsize='small'):
-  from math import floor
-  
-  fig = plt.figure( figsize=siz )
-  
-  ax = plt.axes()
-  plt.plot(
-    range(0, df.shape[0]),
-    df[y].tolist(), 
-    marker='o', 
-    color='darkred', 
-    linewidth=2, 
-    markersize=5
-  )
-  spacingY = max(df[y])/10
-  xStart = 0
-  xSpace = floor( (df.shape[0] - xStart)/10 ) # It'll give me the spacing
-  vxSpace = [i for i in range(xStart, df.shape[0], xSpace) ]
-  vxNames = df.loc[ vxSpace, 'Data' ].tolist()
-  plt.xticks(vxSpace, vxNames, rotation=90)
-  
-  for i in range(df.shape[0]):
-    _v = df.loc[i,y]
-    plt.text(
-      i, 
-      _v+spacingY, 
-      str(_v),
-      fontsize=ftsize,
-      rotation=90,
-      verticalalignment='baseline', 
-      horizontalalignment='center'
-  )
-  maxY = max(df[y])
-  plt.yticks( range(0,maxY+300, 100) )
-  
-  fig.tight_layout() # Remove extra paddings
-  # Convert fig img to buffer img
-  buff =  BytesIO()
-  fig.savefig(buff, format='PNG')
-  buff.seek(0)
-  buff = Image.open(buff).rotate(180).transpose(Image.FLIP_LEFT_RIGHT)
-  return ImageReader( buff )
+    from math import floor
+
+    fig = plt.figure( figsize=siz )
+
+    plt.plot(
+        range(0, df.shape[0]),
+        df[y].tolist(), 
+        marker='o', 
+        color='darkred', 
+        linewidth=2, 
+        markersize=5
+    )
+    
+    spacingY = max(df[y])/10
+    xStart = 0
+    xSpace = floor( (df.shape[0] - xStart)/10 ) # It'll give me the spacing
+    vxSpace = [i for i in range(xStart, df.shape[0], xSpace) ]
+    vxNames = []
+    
+    # Convert into word like
+    for i in df.loc[ vxSpace, 'Data' ].tolist():
+        _c = i.split('-')
+        vxNames.append("{}/{}".format(_c[-1], getMonthName(_c[1])) )
+    
+    plt.xticks(vxSpace, vxNames, rotation=90)
+    
+    # Put number y values as annotations
+    for i in range(df.shape[0]):
+        _v = df.loc[i,y]
+        plt.text(
+          i, 
+          _v+spacingY, 
+          str(_v),
+          fontsize=ftsize,
+          rotation=90,
+          verticalalignment='baseline', 
+          horizontalalignment='center'
+        )
+    
+    # Grid Y positions numbers
+    maxY = max(df[y])
+    plt.yticks( 
+        range(0,maxY+300, 100) 
+    )
+
+    fig.tight_layout() # Remove extra paddings
+    # Convert fig img to buffer img
+    buff =  BytesIO()
+    fig.savefig(buff, format='PNG')
+    buff.seek(0)
+    buff = Image.open(buff).rotate(180).transpose(Image.FLIP_LEFT_RIGHT)
+    return ImageReader( buff )
 
 
 # In[ ]:
@@ -681,7 +729,6 @@ from reportlab.pdfbase.ttfonts import TTFont
 # ## Font family and others settings
 
 # In[ ]:
-
 
 
 ################ Font family and Colors ########################
@@ -879,22 +926,26 @@ def putEmphasis():
     dots(page, 330, yPos + 187, 16, 4)
     dots(page, 330, yPos + 187, 20, 4)
     dots(page, 330, yPos + 187, 24, 4)
+    dots(page, 330, yPos + 187, 28, 4)
     page.setFont('Montserrat',32)
     page.drawCentredString(395, yPos + 240, str(d2a_TofCrecover))
     page.drawCentredString(395, yPos + 270, str(d2a_TofChome))
     page.drawCentredString(395, yPos + 300, str(d2a_TofCdead))
-    page.drawCentredString(395, yPos + 335, str(d2a_TofCnursery))
+    page.drawCentredString(395, yPos + 335, str(d2a_TofCnurseryITA))
     page.drawCentredString(395, yPos + 365, str(d2a_TofCuti))
-    page.drawCentredString(395, yPos + 395, str(d2a_TofCcti))
+    page.drawCentredString(395, yPos + 395, str(d2a_TofCnurseryBH))
+    page.drawCentredString(395, yPos + 395+30, str(d2a_TofCcti))
     page.setFont('Montserrat',12)
     page.setFillColor(rlabColors.gray)
     page.drawString(428, yPos + 230, 'recuperado(s)')
     page.drawString(428, yPos + 255, 'em isolamento domiciliar') #
     page.drawString(448, yPos + 268, 'monitorado')               #
     page.drawString(428, yPos + 293, 'óbito(s) confirmado(os)')
-    page.drawString(428, yPos + 325, 'hospitalizado(s) em enfermaria')
+    page.drawString(428, yPos + 325, 'hospitalizado(s) em enfermaria em Itabira')
     page.drawString(428, yPos + 355, 'hospitalizado(s) em UTI em Itabira')
-    page.drawString(428, yPos + 385, 'hospitalizado(s) em CTI em BH')
+    page.drawString(428, yPos + 385, 'hospitalizado(s) em enfermaria em BH')
+    page.drawString(428, yPos + 385+30, 'hospitalizado(s) em UTI em BH')
+    
 
     # Rectangles and DOTS (RIGHT)
     page.setFillColor(myColors['GreenD'])
@@ -957,7 +1008,7 @@ def putEmphasis():
         str(d2a_TofDiscarted)
     )
 
-    yPos = 650
+    yPos = 700
 
 
 # ## Perfil Epidemiológico Dos Casos De Síndrome Respiratória Não Específicada
@@ -1247,31 +1298,31 @@ def save():
 
 
 def putSecSeven():
-  global page, yPos
-  
-  # Titles
-  page.setFont("Montserrat",24)
-  page.setFillColor(rlabColors.gray)
-  page.drawCentredString(
+    global page, yPos
+
+    # Titles
+    page.setFont("Montserrat",24)
+    page.setFillColor(rlabColors.gray)
+    page.drawCentredString(
       pgDim['w']/2,
       yPos,
       "CRESCIMENTO DE CASOS DE SÍNDROME RESPIRATÓRIA")
-  yPos += 30
-  page.drawCentredString(
+    yPos += 30
+    page.drawCentredString(
       pgDim['w']/2,
       yPos,
       "NÃO ESPECIFICADA")
-  yPos += 30
-  # Draw graphic disease
-  _dist = 20
-  page.drawImage(
+    yPos += 30
+    # Draw graphic disease
+    _dist = 20
+    page.drawImage(
       graphic_Stimeline, 
       _dist, 
       yPos,
       pgDim['w']-2*_dist,
       (pgDim['w']-2*_dist)/3
-  )
-  yPos += 350
+    )
+    yPos += 350
   
 
 
@@ -1281,27 +1332,27 @@ def putSecSeven():
 
 
 def putSecEight():
-  global page, yPos
-  
-  # Titles
-  page.setFont("Montserrat",24)
-  page.setFillColor(rlabColors.gray)
-  page.drawCentredString(
+    global page, yPos
+
+    # Titles
+    page.setFont("Montserrat",24)
+    page.setFillColor(rlabColors.gray)
+    page.drawCentredString(
       pgDim['w']/2,
       yPos,
       "CRESCIMENTO DE CASOS CONFIRMADOS")
-  yPos += 30
+    yPos += 30
 
-  # Draw graphic disease
-  _dist = 20
-  page.drawImage(
+    # Draw graphic disease
+    _dist = 20
+    page.drawImage(
       graphic_Ctimeline, 
       _dist, 
       yPos,
       pgDim['w']-2*_dist,
       (pgDim['w']-2*_dist)/3
-  )
-  yPos += 350
+    )
+    yPos += 350
   
 
 
@@ -1348,7 +1399,7 @@ def getExternal(fileName):
 
 
 fileName = 'pdfs/Boletim-Externo_{}-{}-{}.pdf'.format(DAY,MONTH_NAME,YEAR)
-pgDim = {'w':792,'h':1100}
+pgDim = {'w':792,'h':1150}
 
 getExternal(fileName)
 
@@ -1359,13 +1410,7 @@ getExternal(fileName)
 
 
 fileName = 'pdfs/Boletim-Interno_{}-{}-{}.pdf'.format(DAY,MONTH_NAME,YEAR)
-pgDim = {'w':792,'h':5600}
+pgDim = {'w':792,'h':5650}
 
 getInternal(fileName)
-
-
-# In[ ]:
-
-
-
 
