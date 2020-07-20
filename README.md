@@ -93,6 +93,8 @@ Worksheet columns:
 |           | Longitude                                            | *                                                                              |
 | ★         | Semana epidemiológica                                | *                                                                              |
 
+> Note that besides this informations, you also need two files in `others` directory. Those files are used to generate the graph of confirmed cases over time and 
+
 ### Downloads
 
 This section needs to be executed by system.
@@ -128,6 +130,10 @@ wget http://www.clker.com/cliparts/2/a/Q/D/P/J/woman-orange-hi.png -qO girl.png
 wget https://i.imgur.com/OnzjeAY.png -qO boy.png
 mkdir img && mv boy.png img/boy.png && mv girl.png img/girl.png
 wget https://i.imgur.com/ef1IAWY.jpg -qO img/logo.png
+# It's need fontawesome also, so downlod it in site
+# https://use.fontawesome.com/releases/v5.13.1/fontawesome-free-5.13.1-desktop.zip
+# And then convert into ttf
+# https://anyconv.com/otf-to-ttf-converter/
 
 # Create folder to store pdf and logs
 mkdir pdfs/

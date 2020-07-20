@@ -1,0 +1,16 @@
+# Ignore jupyter
+.ipynb*
+# Ignore vscode folders
+.vscode/*
+#
+# Ignore project's folders
+fonts/*
+img/*
+logs/*
+pdfs/*
+modules/__pycache__/*
+#
+# Ignore credentials. This is need for security reasons.
+credentials/*
+#
+# Check if works in my cell phone: coronaplotsv2.py

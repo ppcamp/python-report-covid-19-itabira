@@ -196,11 +196,21 @@ def getSheetValue(sheet_name, URL, gc, debug=False):
     df.rename(columns={'Escolha a situação do caso descartado:':'Discarted'}, inplace=True)
     df.rename(columns={'Fatores de risco:':'RiskFactors'}, inplace=True)
     df.rename(columns={'Semana epidemiológica':'EpidemicWeek'}, inplace=True)
-    df.rename(columns={'Data da alta:':'HospitalDate'}, inplace=True)
+    df.rename(columns={'Data da internação:':'HospitalDate'}, inplace=True)
 
     # Remove where Situation is empty -- In this dataframe, empty means that are duplicate
     _filter = df['Situation'] != ''
     df = df[_filter]
+
+    # Convert all dates in HospitalDate to format dd/mm/yyyy
+    # Note that we can't use Series.dt.date because we have
+    # empty fields as also 'PROFISSIONAL DE SAUDE', and furthermore
+    # 'FINALIZADO'.
+    def toFullYear(year):
+        if len(year)==8: # Means that are in format dd/mm/yy
+            year = year[:6] + '20' + year[6:]
+        return year
+    df['HospitalDate'] = df['HospitalDate'].apply(toFullYear)
 
     # Convert to lower. We do this to minimize possible errors when making a string compare.
     df['Situation'] = df['Situation'].str.lower()
@@ -426,10 +436,11 @@ def percentage(number, total):
 
 # Vector of positions in dataframe corresponding to situations
 d2a_vConfirmed = np.array( df['Situation']=='confirmado', dtype=np.bool )
-d2a_vDunderI = np.array( df['Situation']=='obito em investigação', dtype=np.bool ) # deaths under investigation
+d2a_vDunderI = np.array( df['Monitoring']=='obito em investigacao', dtype=np.bool ) # deaths under investigation
 d2a_vSuspect = np.array( df['Situation']=='suspeito', dtype=np.bool ) | d2a_vDunderI
 d2a_vDiscarted = np.array( df['Situation']=='descartado', dtype=np.bool )
 d2a_vCinterned = np.array( df['SituationOfConfirmed']=='internado', dtype=np.bool ) # Only for those confirmed interned
+d2a_vInterned = np.array( df['IsInterned']=='sim', dtype=np.bool ) # suspects, confirmed, discarted etc 
 # After talk to Patrícia, she told me that she itself change those ones who are
 # interned, so, we actually must ignore those informations in google forms, and attempt
 # just to search of values in fields 
@@ -509,6 +520,8 @@ for it in df.index:
 
         
 # Now we must access a stored data which refers to oldiest reports
+# This is needed, because the sheetsheet change the current situation
+# over time, losing the oldiest suspects, e.g.
 _cdate = '{}-{}-{}'.format(YEAR, MONTH, DAY)
 d2a_dfCStimeline = pd.read_csv('others/brief_reports_data.csv')
 
@@ -538,6 +551,14 @@ for i in set(df['Neighboorhood']):
     _nbh.append({ 'Neighboorhood': i, 'qtdSuspect': susp, 'qtdConf': conf})#, 'qtdAnalis': anali})
 # Sort by ascending order
 d2a_vNeighboorhood = sorted(_nbh, key=lambda k: k['qtdConf'], reverse=True)
+
+
+
+# # Get days with confirmed cases in hospitals
+# d2a_vHospitalDates = list(set(df.loc[d2a_vConfirmed & d2a_vInterned, 'HospitalDate']))
+# # Sort dates
+# from datetime import datetime
+# d2a_vHospitalDates = sorted(d2a_vHospitalDates, key=lambda x: datetime.strptime(x, '%d/%m/%Y'))
 
 
 # In[ ]:
@@ -732,6 +753,9 @@ from reportlab.pdfbase.ttfonts import TTFont
 
 
 ################ Font family and Colors ########################
+# https://fontawesome.com/cheatsheet/free/solid
+pdfmetrics.registerFont(TTFont('FontAwesomeS', 'fonts/FontAwesome_5_' + 'Solid.ttf'))
+pdfmetrics.registerFont(TTFont('FontAwesomeB', 'fonts/FontAwesome_5_' + 'Brands.ttf'))
 pdfmetrics.registerFont(TTFont('Montserrat','fonts/Montserrat-'+'Regular.ttf'))
 pdfmetrics.registerFont(TTFont('Montserratb','fonts/Montserrat-'+'Bold.ttf'))
 pdfmetrics.registerFont(TTFont('Montserrati','fonts/Montserrat-'+'Italic.ttf'))
@@ -919,45 +943,45 @@ def putEmphasis():
 
     # Rectangles and DOTS (MIDDLE)
     page.setFillColor(rlabColors.red)
-    page.roundRect(288, yPos + 75, 219, 112, 15, 0, 1)
-    dots(page, 330, yPos + 187, 4, 4)
-    dots(page, 330, yPos + 187, 8, 4)
-    dots(page, 330, yPos + 187, 12, 4)
-    dots(page, 330, yPos + 187, 16, 4)
-    dots(page, 330, yPos + 187, 20, 4)
-    dots(page, 330, yPos + 187, 24, 4)
-    dots(page, 330, yPos + 187, 28, 4)
+    page.roundRect(288 - 10, yPos + 75, 219, 112, 15, 0, 1)
+    dots(page, 330 - 10, yPos + 187, 4, 4)
+    dots(page, 330 - 10, yPos + 187, 8, 4)
+    dots(page, 330 - 10, yPos + 187, 12, 4)
+    dots(page, 330 - 10, yPos + 187, 16, 4)
+    dots(page, 330 - 10, yPos + 187, 20, 4)
+    dots(page, 330 - 10, yPos + 187, 24, 4)
+    dots(page, 330 - 10, yPos + 187, 28, 4)
     page.setFont('Montserrat',32)
-    page.drawCentredString(395, yPos + 240, str(d2a_TofCrecover))
-    page.drawCentredString(395, yPos + 270, str(d2a_TofChome))
-    page.drawCentredString(395, yPos + 300, str(d2a_TofCdead))
-    page.drawCentredString(395, yPos + 335, str(d2a_TofCnurseryITA))
-    page.drawCentredString(395, yPos + 365, str(d2a_TofCuti))
-    page.drawCentredString(395, yPos + 395, str(d2a_TofCnurseryBH))
-    page.drawCentredString(395, yPos + 395+30, str(d2a_TofCcti))
+    page.drawCentredString(395 - 10, yPos + 240, str(d2a_TofCrecover))
+    page.drawCentredString(395 - 10, yPos + 270, str(d2a_TofChome))
+    page.drawCentredString(395 - 10, yPos + 300, str(d2a_TofCdead))
+    page.drawCentredString(395 - 10, yPos + 335, str(d2a_TofCnurseryITA))
+    page.drawCentredString(395 - 10, yPos + 365, str(d2a_TofCuti))
+    page.drawCentredString(395 - 10, yPos + 395, str(d2a_TofCnurseryBH))
+    page.drawCentredString(395 - 10, yPos + 395+30, str(d2a_TofCcti))
     page.setFont('Montserrat',12)
     page.setFillColor(rlabColors.gray)
-    page.drawString(428, yPos + 230, 'recuperado(s)')
-    page.drawString(428, yPos + 255, 'em isolamento domiciliar') #
-    page.drawString(448, yPos + 268, 'monitorado')               #
-    page.drawString(428, yPos + 293, 'óbito(s) confirmado(os)')
-    page.drawString(428, yPos + 325, 'hospitalizado(s) em enfermaria em Itabira')
-    page.drawString(428, yPos + 355, 'hospitalizado(s) em UTI em Itabira')
-    page.drawString(428, yPos + 385, 'hospitalizado(s) em enfermaria em BH')
-    page.drawString(428, yPos + 385+30, 'hospitalizado(s) em UTI em BH')
+    page.drawString(428 - 10, yPos + 230, 'recuperado(s)')
+    page.drawString(428 - 10, yPos + 255, 'em isolamento domiciliar') #
+    page.drawString(448 - 10, yPos + 268, 'monitorado')               #
+    page.drawString(428 - 10, yPos + 293, 'óbito(s) confirmado(os)')
+    page.drawString(428 - 10, yPos + 325, 'hospitalizado(s) em enfermaria em Itabira')
+    page.drawString(428 - 10, yPos + 355, 'hospitalizado(s) em UTI em Itabira')
+    page.drawString(428 - 10, yPos + 385, 'hospitalizado(s) em enfermaria em outra cidade')
+    page.drawString(428 - 10, yPos + 385+30, 'hospitalizado(s) em UTI em outra cidade')
     
 
     # Rectangles and DOTS (RIGHT)
     page.setFillColor(myColors['GreenD'])
     page.roundRect(563, yPos + 75, 219, 112, 15, 0, 1)
-    dots(page, 590, yPos + 212, 5, 2)
+    dots(page, 590 + 15, yPos + 212, 5, 2)
     page.setFont('Montserrat',32)
-    page.drawCentredString(620, yPos + 272, str(d2a_TofDdeaths))
+    page.drawCentredString(620 + 15, yPos + 272, str(d2a_TofDdeaths))
     page.setFont('Montserrat',12)
     page.setFillColor(rlabColors.gray)
-    page.drawString(563, yPos + 200, 'Testaram negativo para Covid-19')
-    page.drawString(563, yPos + 210, 'ou positivo para outra doença')
-    page.drawString(635, yPos + 262, 'óbito(s) descartados')
+    page.drawString(563 + 15, yPos + 200, 'Testaram negativo para Covid-19')
+    page.drawString(573 + 15, yPos + 210, 'ou positivo para outra doença')
+    page.drawString(635 + 15, yPos + 262, 'óbito(s) descartados')
 
 
     # Text over rectangles
@@ -1145,11 +1169,11 @@ def putSecThree():
     page.setFont("Montserratb",10)
     yPos += 5
     for i in d2a_vNeighboorhood:
-      yPos+= 17  
-      page.drawString(xPos, yPos, i['Neighboorhood'])
-      page.drawCentredString(xPos + 2.7*multiplier, yPos, str(i['qtdSuspect']))
-      #page.drawCentredString(xPos + 2*multiplier, yPos, str(i['qtdAnalis']))
-      page.drawCentredString(xPos + 1.5*multiplier, yPos, str(i['qtdConf']))
+        yPos+= 17  
+        page.drawString(xPos, yPos, i['Neighboorhood'])
+        page.drawCentredString(xPos + 2.7*multiplier, yPos, str(i['qtdSuspect']))
+        #page.drawCentredString(xPos + 2*multiplier, yPos, str(i['qtdAnalis']))
+        page.drawCentredString(xPos + 1.5*multiplier, yPos, str(i['qtdConf']))
 
     # Drawing total of analysis
     yPos += 5
@@ -1274,11 +1298,21 @@ def putSecSix():
 def putFooter():
     global page
     
-    page.drawImage(logo, pgDim['w']-200, pgDim['h']-70, 125, 38)
+    # page.drawImage(logo, pgDim['w']-200, pgDim['h']-70, 125, 38) # Removed -- elections
+    
+    # Draw icons
+    page.setFont("FontAwesomeS",12)
+    page.drawCentredString(pgDim['w']/2 - 100, pgDim['h']-40,'') # Link
+    page.setFont("FontAwesomeB",12)
+    page.drawCentredString(pgDim['w']/2 - 110, pgDim['h']-25,'') # Facebook
+    
+    # Draw Text
     page.setFont("Montserrat",12)
-    page.drawCentredString(150, pgDim['h']-60, "Mais informações:")
-    page.drawCentredString(150, pgDim['h']-40,'novoportal.itabira.mg.gov.br/')
-    page.drawCentredString(150, pgDim['h']-25,'facebook.com/prefeituraitabira')
+    page.drawCentredString(pgDim['w']/2, pgDim['h']-60, "Mais informações:") # xpos = 150
+    _site = 'novoportal.itabira.mg.gov.br/'
+    _fb = 'facebook.com/prefeituraitabira'
+    page.drawCentredString(pgDim['w']/2, pgDim['h']-40,_site) #'<link href="{0}">{0}</link>'.format(_site))
+    page.drawCentredString(pgDim['w']/2, pgDim['h']-25,_fb)# '<link href="{0}">{0}</link>'.format(_fb))
 
 
 # ## Save
@@ -1410,7 +1444,7 @@ getExternal(fileName)
 
 
 fileName = 'pdfs/Boletim-Interno_{}-{}-{}.pdf'.format(DAY,MONTH_NAME,YEAR)
-pgDim = {'w':792,'h':5650}
+pgDim = {'w':792,'h':5700}
 
 getInternal(fileName)
 
