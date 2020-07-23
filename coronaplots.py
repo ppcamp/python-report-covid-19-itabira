@@ -306,45 +306,45 @@ log.info('Images loaded successfully')
 
 
 def similar(word1, word2, accept=False, caseSensitive=False, method='BuiltIn'):
-  '''
-  This method check similarity between strings. It can be used with
-  two ways. Using built-in method or leveinshtein implementation by
-  Antti Haapala. If use leveinshtein, need to
+    '''
+    This method check similarity between strings. It can be used with
+    two ways. Using built-in method or leveinshtein implementation by
+    Antti Haapala. If use leveinshtein, need to
         >>> pip install python-Levenshtein  
-  See
-  ---
+    See
+    ---
     https://rawgit.com/ztane/python-Levenshtein/master/docs/Levenshtein.html
-  
-  Parameters
-  ----------
-  word1: (string) To compare
-  word2: (string) To compare
-  accept: (int) If 0 will return percentual, else return true for value in percent
-  caseSensitive: (bool) Set false to disable
-  method: (string) 'BuiltIn' or 'Levenshtein'
 
-  Return
-  ------
-  Similarity in percentual if accept is False, otherwise,
-  True for percentual > accept
-  '''
+    Parameters
+    ----------
+    word1: (string) To compare
+    word2: (string) To compare
+    accept: (int) If 0 will return percentual, else return true for value in percent
+    caseSensitive: (bool) Set false to disable
+    method: (string) 'BuiltIn' or 'Levenshtein'
 
-  if not caseSensitive:
-    word1 = word1.lower()
-    word2 = word2.lower()
-  
-  if method == 'BuiltIn':
-    from difflib import SequenceMatcher
-    percent = SequenceMatcher(None, word1, word2).ratio()
-    return percent if not accept else percent>=accept
+    Return
+    ------
+    Similarity in percentual if accept is False, otherwise,
+    True for percentual > accept
+    '''
 
-  elif method == 'Levenshtein':
-    from Levenshtein import ratio
-    percent = ratio(word1, word2)
-    return percent if not accept else percent>=accept
+    if not caseSensitive:
+        word1 = word1.lower()
+        word2 = word2.lower()
 
-  else:
-    raise(Exception('Method not implemented.'))
+    if method == 'BuiltIn':
+        from difflib import SequenceMatcher
+        percent = SequenceMatcher(None, word1, word2).ratio()
+        return percent if not accept else percent>=accept
+
+    elif method == 'Levenshtein':
+        from Levenshtein import ratio
+        percent = ratio(word1, word2)
+        return percent if not accept else percent>=accept
+
+    else:
+        raise(Exception('Method not implemented.'))
 
 def applyFilter(df, l, word, col):
     '''
@@ -515,33 +515,8 @@ for it in df.index:
         if _week =='#N/A':
             _week = 0
         # Note that week value to"1'\n".strip()ok both situations.
-        d2a_vCSweekValue[_week-9 if _week>0 else 0] += 1
-
-
+        d2a_vCSweekValue[_week-9 if _week>0 else 0] += 1 
         
-# Now we must access a stored data which refers to oldiest reports
-# This is needed, because the sheetsheet change the current situation
-# over time, losing the oldiest suspects, e.g.
-_cdate = '{}-{}-{}'.format(YEAR, MONTH, DAY)
-d2a_dfCStimeline = pd.read_csv('others/brief_reports_data.csv')
-
-if isMonday(): 
-    if _cdate in d2a_dfCStimeline['Data'].tolist():
-        _pos = d2a_dfCStimeline['Data']==_cdate
-        d2a_dfCStimeline.loc[_pos, 'Sindrome'] = np.int64(d2a_TofSuspect)
-        d2a_dfCStimeline.loc[_pos, 'Covid'] = np.int64(d2a_TofConfirmed)
-
-    else:
-        d2a_dfCStimeline = d2a_dfCStimeline.append({
-            'Data': _cdate,
-            'Sindrome': np.int64(d2a_TofSuspect),
-            'Covid': np.int64(d2a_TofConfirmed)
-            },
-            ignore_index=True)
-        d2a_dfCStimeline.to_csv('others/brief_reports_data.csv', index=False)
-
-
-
 # Where don't have an NHD the type is NaN, due that, we can't access it
 _nbh = []
 for i in set(df['Neighboorhood']): 
@@ -554,11 +529,52 @@ d2a_vNeighboorhood = sorted(_nbh, key=lambda k: k['qtdConf'], reverse=True)
 
 
 
-# # Get days with confirmed cases in hospitals
-# d2a_vHospitalDates = list(set(df.loc[d2a_vConfirmed & d2a_vInterned, 'HospitalDate']))
-# # Sort dates
-# from datetime import datetime
-# d2a_vHospitalDates = sorted(d2a_vHospitalDates, key=lambda x: datetime.strptime(x, '%d/%m/%Y'))
+# Now we must access a stored data which refers to oldiest reports
+# This is needed, because the sheetsheet change the current situation
+# over time, losing the oldiest suspects, e.g.
+_cdate = '{}-{}-{}'.format(YEAR, MONTH, DAY)
+
+# Import database's library
+import sqlite3
+
+# Connect to sqlite database used to store the data of the past mondays
+database = sqlite3.connect("others/database.sqlite")
+
+# Load the data into a DataFrame
+d2a_dfCStimeline = pd.read_sql_query(
+    "SELECT * from Covid_and_Suspects_timeline", 
+    database,
+    index_col="Id"
+)
+
+# Update the database if it's monday
+if isMonday():
+    # If the date already exist in df, update it
+    if _cdate in d2a_dfCStimeline['Data'].tolist():
+        _pos = d2a_dfCStimeline['Data']==_cdate
+        d2a_dfCStimeline.loc[_pos, 'Sindrome'] = np.int64(d2a_TofSuspect)
+        d2a_dfCStimeline.loc[_pos, 'Covid'] = np.int64(d2a_TofConfirmed)
+    # If don't (runned at first time in the monday), create a new row
+    else:
+        d2a_dfCStimeline = d2a_dfCStimeline.append({
+            'Data': _cdate,
+            'Sindrome': np.int64(d2a_TofSuspect),
+            'Covid': np.int64(d2a_TofConfirmed)
+            },
+            ignore_index=True)
+
+
+# Write the dataframe d2a_dfCStimeline to the database
+d2a_dfCStimeline.to_sql(
+    "Covid_and_Suspects_timeline", # Table name
+    database,                      # Database name
+    if_exists="replace",           # Replace table if exist
+    index_label="Id",              # Index name
+    index=True                     # Enable index name
+)
+
+# Close DB connection
+database.close()
 
 
 # In[ ]:
@@ -974,14 +990,14 @@ def putEmphasis():
     # Rectangles and DOTS (RIGHT)
     page.setFillColor(myColors['GreenD'])
     page.roundRect(563, yPos + 75, 219, 112, 15, 0, 1)
-    dots(page, 590 + 15, yPos + 212, 5, 2)
+    dots(page, 590 + 15, yPos + 212, 5, 1)
     page.setFont('Montserrat',32)
     page.drawCentredString(620 + 15, yPos + 272, str(d2a_TofDdeaths))
     page.setFont('Montserrat',12)
     page.setFillColor(rlabColors.gray)
     page.drawString(563 + 15, yPos + 200, 'Testaram negativo para Covid-19')
     page.drawString(573 + 15, yPos + 210, 'ou positivo para outra doença')
-    page.drawString(635 + 15, yPos + 262, 'óbito(s) descartados')
+    page.drawString(635 + 20, yPos + 265, 'óbito(s) descartados')
 
 
     # Text over rectangles
@@ -1444,7 +1460,7 @@ getExternal(fileName)
 
 
 fileName = 'pdfs/Boletim-Interno_{}-{}-{}.pdf'.format(DAY,MONTH_NAME,YEAR)
-pgDim = {'w':792,'h':5700}
+pgDim = {'w':792,'h':5450}
 
 getInternal(fileName)
 
