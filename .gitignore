@@ -4,8 +4,6 @@
 .vscode/*
 #
 # Ignore project's folders
-fonts/*
-img/*
 logs/*
 pdfs/*
 modules/__pycache__/*
