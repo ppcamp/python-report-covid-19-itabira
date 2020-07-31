@@ -1,24 +1,18 @@
-#!/usr/bin/env python
-# coding: utf-8
-
+# %% [markdown]
 # # CoronaPlots report
 # 
 # This code focus on readability instead speed. 
 # 
 # > Note, you can remove all filters and others steps by replacing it by a simple loop.
 
-# In[ ]:
-
-
+# %%
 # -*- coding: utf-8 -*-
 
-
+# %% [markdown]
 # ---
 # # Getting current date
 
-# In[ ]:
-
-
+# %%
 # pytz.all_timezones to see all timezones
 from pytz import timezone # Defaul timezone it's ahead of Brasil(+)
 from datetime import datetime, date
@@ -65,13 +59,11 @@ def getMonthName(month, startUpper=False):
 # Get month's name
 MONTH_NAME = getMonthName(MONTH, True)
 
-
+# %% [markdown]
 # # Starting logging
 # [See this tip 'bout logging](https://docs.python.org/3/library/logging.html#logrecord-attributes)
 
-# In[ ]:
-
-
+# %%
 import logging as log
 log.basicConfig(
     format='[%(asctime)s] : %(levelname)s: %(funcName)s : %(message)s', 
@@ -81,17 +73,15 @@ log.basicConfig(
 log.info('Logging created w/ success!')
 log.debug('Default timezone: {}'.format(BRASIL_TZ))
 
-
+# %% [markdown]
 # # Login and Sheet load
 # 
 # [O2auth (in use)](https://gspread.readthedocs.io/en/latest/oauth2.html) client.
 # To use Google's API, you'll need to allow Google API in **[Google console](https://console.developers.google.com/iam-admin/projects)**. Also, you'll must create an business account too. 
-
+# %% [markdown]
 # ## Login
 
-# In[ ]:
-
-
+# %%
 from oauth2client.service_account import ServiceAccountCredentials as Credentials
 import gspread # Sheets
 
@@ -105,17 +95,13 @@ GAUTH = Credentials.from_json_keyfile_name('credentials/nisis_credentials.json',
 GCLIENT = gspread.authorize(GAUTH)
 
 
-# In[ ]:
-
-
+# %%
 log.info('Client acquired with success!')
 
-
+# %% [markdown]
 # ## Sheet Load
 
-# In[ ]:
-
-
+# %%
 import pandas as pd
 from numpy import nan as NaN
 import numpy as np
@@ -246,33 +232,27 @@ def getSheetValue(sheet_name, URL, gc, debug=False):
     return df
 
 
-# In[ ]:
-
-
+# %%
 # Getting results
 sheetName = "{}-{}-{}".format(DAY,MONTH,YEAR)
 df = getSheetValue(sheetName, URL, GCLIENT)
 
 log.info('Tab "{}" oppened with success!'.format(sheetName))
 
-
+# %% [markdown]
 # # Image and Copy Imports
 
-# In[ ]:
-
-
+# %%
 # To import image in reportlab. Images are Pillow formats or BytesIO
 from reportlab.lib.utils import ImageReader
 
 from PIL import Image # Open png images
 from copy import deepcopy as dp # dataframe creation and manipulation permanent
 
-
+# %% [markdown]
 # # Load Images
 
-# In[ ]:
-
-
+# %%
 def alpha2white(img):
     # Create a white rgb background
     _img = Image.new("RGBA", img.size, "WHITE") 
@@ -288,12 +268,10 @@ logo = ImageReader( Image.open('img/logo.png').rotate(180).transpose(Image.FLIP_
 # It's necessary rotate because PIL inverted.
 
 
-# In[ ]:
-
-
+# %%
 log.info('Images loaded successfully')
 
-
+# %% [markdown]
 # # Data analysis
 # 
 # > In _Google sheets_ you can use COUNTIF functions to count ocurrences in a column:
@@ -302,9 +280,7 @@ log.info('Images loaded successfully')
 # =SUBTOTAL(103;A2:A2000) # Count visible rows
 # ```
 
-# In[ ]:
-
-
+# %%
 def similar(word1, word2, accept=False, caseSensitive=False, method='BuiltIn'):
     '''
     This method check similarity between strings. It can be used with
@@ -387,9 +363,7 @@ def applyFilter(df, l, word, col):
     return int(len(list( filter(getValue, df.loc[l, col]) )))
 
 
-# In[ ]:
-
-
+# %%
 # To be clear in variable manipulation, every var in this section will have
 # an d2a_ prefix (data to analysis). If it's a const will be UPPER_CASE
 
@@ -577,9 +551,7 @@ d2a_dfCStimeline.to_sql(
 database.close()
 
 
-# In[ ]:
-
-
+# %%
 # Logs
 log.debug('Data: df.shape[0] → {}'.format(df.shape[0]))
 log.info('Data analysis')
@@ -622,12 +594,10 @@ log.debug('Data: d2a_dfCStimeline.shape[0] → {}'.format(d2a_dfCStimeline.shape
 log.debug('Data: isMonday → {}'.format(isMonday()))
 log.debug('Data: d2a_vNeighboorhood → {}'.format(d2a_vNeighboorhood))
 
-
+# %% [markdown]
 # # Plots
 
-# In[ ]:
-
-
+# %%
 import matplotlib.pyplot as plt
 import seaborn as sns # Change color plot
 from io import BytesIO # Image buff
@@ -733,9 +703,7 @@ def linePlot2(df, y, siz, ftsize='small'):
     return ImageReader( buff )
 
 
-# In[ ]:
-
-
+# %%
 # Generating
 graphic_C           = barPlot(d2a_vCage, AGES, (7,5))
 graphic_S           = barPlot(d2a_vSage, AGES, (7,5))
@@ -745,14 +713,12 @@ graphic_CSweek      = linePlot(d2a_vCSweekValue, d2a_vCSweekName, (15,5))
 graphic_Ctimeline   = linePlot2(d2a_dfCStimeline, 'Covid', (15,5) )
 graphic_Stimeline   = linePlot2(d2a_dfCStimeline, 'Sindrome', (15,5) )
 
-
+# %% [markdown]
 # # PDF Report
-
+# %% [markdown]
 # ## Imports
 
-# In[ ]:
-
-
+# %%
 from reportlab import __version__
 # Canvas are used to draw in pdf (When U won't to create a document template)
 from reportlab.pdfgen import canvas
@@ -762,12 +728,10 @@ from reportlab.lib import colors as rlabColors
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
-
+# %% [markdown]
 # ## Font family and others settings
 
-# In[ ]:
-
-
+# %%
 ################ Font family and Colors ########################
 # https://fontawesome.com/cheatsheet/free/solid
 pdfmetrics.registerFont(TTFont('FontAwesomeS', 'fonts/FontAwesome_5_' + 'Solid.ttf'))
@@ -796,12 +760,10 @@ myColors = {
     'IceWhite': rlabColors.toColor('rgb(233,233,233)')
 } 
 
-
+# %% [markdown]
 # ## Default configs
 
-# In[ ]:
-
-
+# %%
 keywords = ['PDF report','Corona', 'Corona vírus', 'vírus', 'COVID19']
 progVers = '2.0'
 author   = 'Pedro Augusto C Santos'
@@ -818,12 +780,49 @@ page = '' # just to initialize the variable
 # of python, to search variables defined before to minimize the number of
 # parameters that I would to put in Class, or either in a function.
 
+# %% [markdown]
+# ## Pdf generic functions
 
+# %%
+def pdfDrawLink(url, x, y, width, height, color=False):
+    '''
+    This function fix the link problem with the coordinates system.
+
+    Globals
+    -------
+    page: (reportlab Canvas) Pdf itself.
+    pgDim: (dict) 'w'=page_width, 'h'=page_height.
+
+    Parameters
+    ----------
+    url: (str) Link to webpage. Consider to use "https://{}".format(url), 
+                otherwise, will try to link with file.
+    x: (int) X position.
+    y: (int) Y position.
+    width: (int) Size dimension.
+    height: (int) Size dimension.
+    color: (bool) If true, draws a rectangle equivalent to the area where the link are.
+    '''
+    global page, pgDim
+
+    if color:
+        page.setFillColor(myColors['Green'])
+        page.rect(x,y,width,height,fill=1,stroke=0)
+    
+    y = pgDim['h'] - y
+    
+    page.linkURL(
+        url,
+        (x, y, x+width, y-height),
+        thickness=0
+        # relative=1, # This doesn't nothing. 
+        # In theory, this should be capable to use page properties instead default coordinate system (bottom up, left right)
+    )
+
+# %% [markdown]
 # ## Start
 
-# In[ ]:
-
-
+# %%
 def pdf_Start(fileName):
     global pgDim, xPos, yPos, page
 
@@ -844,24 +843,20 @@ def pdf_Start(fileName):
     page.setAuthor(author)
     page.setSubject(subject)
 
-
+# %% [markdown]
 # ## Title
 
-# In[ ]:
-
-
+# %%
 def setTitle(t):
     global page
     
     page.setTitle(t)
     page.setFillColor(rlabColors.white)
 
-
+# %% [markdown]
 # ## Header
 
-# In[ ]:
-
-
+# %%
 def putHeader(c1, c2):
     global page, yPos
 
@@ -903,12 +898,10 @@ def putHeader(c1, c2):
     yPos = 200 # 195 
     # Before this point, everything must use yPos parameter to position Y coords
 
-
+# %% [markdown]
 # ## Emphasis
 
-# In[ ]:
-
-
+# %%
 def putEmphasis():
     global page, yPos
 
@@ -933,9 +926,9 @@ def putEmphasis():
     # Rectangles and Dots (LEFT)
     page.setFillColor(myColors['BlueFB'])
     page.roundRect(14, yPos + 75,219, 112, 15, 0, 1)
-    dots(page, 50, yPos + 187, 6, 1)
-    dots(page, 50, yPos + 235, 6, 1)
-    dots(page, 50, yPos + 235+48, 11, 1)
+    dots(page, 30, yPos + 187, 6, 1)
+    dots(page, 30, yPos + 235, 6, 3)
+    dots(page, 30, yPos + 235+48, 11, 3)
     page.setFont('Montserrat',18)
     page.drawString(115, yPos + 239,'PESSOA(S) EM')
     page.drawString(115, yPos + 255,'MONITORAMENTO')
@@ -944,37 +937,37 @@ def putEmphasis():
     page.drawString(115, yPos + 239+48+88,'ÓBITO(S) EM')
     page.drawString(115, yPos + 255+48+88,'INVESTIGAÇÃO')
     page.setFont('Montserrat',32)
-    page.drawCentredString(85, yPos + 251, str(d2a_TofSmonitor))
-    page.drawCentredString(85, yPos + 300, str(d2a_TofSnursery + d2a_TofSuti))
-    page.drawCentredString(85, yPos + 300+88, str(d2a_TofDunderI))
+    page.drawCentredString(75, yPos + 251, str(d2a_TofSmonitor))
+    page.drawCentredString(75, yPos + 300, str(d2a_TofSnursery + d2a_TofSuti))
+    page.drawCentredString(75, yPos + 300+88, str(d2a_TofDunderI))
     page.setFont('Montserrat',18)
     page.setFillColor(rlabColors.gray)
     page.drawCentredString(108, yPos + 327, str(d2a_TofSnursery))
     page.drawCentredString(108, yPos + 345, str(d2a_TofSuti))
     page.setFont('Montserrat',12)
-    dots(page, 80, yPos + 300, 2, 1)
-    dots(page, 80, yPos + 316, 2, 1)
+    dots(page, 70, yPos + 300, 2, 2)
+    dots(page, 70, yPos + 316, 2, 2)
     page.drawString(98+20, yPos + 325, 'enfermaria')
     page.drawString(98+20, yPos + 343, 'em UTI')
 
     # Rectangles and DOTS (MIDDLE)
     page.setFillColor(rlabColors.red)
     page.roundRect(288 - 10, yPos + 75, 219, 112, 15, 0, 1)
-    dots(page, 330 - 10, yPos + 187, 4, 4)
-    dots(page, 330 - 10, yPos + 187, 8, 4)
-    dots(page, 330 - 10, yPos + 187, 12, 4)
-    dots(page, 330 - 10, yPos + 187, 16, 4)
-    dots(page, 330 - 10, yPos + 187, 20, 4)
-    dots(page, 330 - 10, yPos + 187, 24, 4)
-    dots(page, 330 - 10, yPos + 187, 28, 4)
+    dots(page, 330 - 10, yPos + 187, 4, 2)
+    dots(page, 330 - 10, yPos + 187, 8, 2)
+    dots(page, 330 - 10, yPos + 187, 12, 2)
+    dots(page, 330 - 10, yPos + 187, 16, 2)
+    dots(page, 330 - 10, yPos + 187, 20, 2)
+    dots(page, 330 - 10, yPos + 187, 24, 2)
+    dots(page, 330 - 10, yPos + 187, 28, 2)
     page.setFont('Montserrat',32)
-    page.drawCentredString(395 - 10, yPos + 240, str(d2a_TofCrecover))
-    page.drawCentredString(395 - 10, yPos + 270, str(d2a_TofChome))
-    page.drawCentredString(395 - 10, yPos + 300, str(d2a_TofCdead))
-    page.drawCentredString(395 - 10, yPos + 335, str(d2a_TofCnurseryITA))
-    page.drawCentredString(395 - 10, yPos + 365, str(d2a_TofCuti))
-    page.drawCentredString(395 - 10, yPos + 395, str(d2a_TofCnurseryBH))
-    page.drawCentredString(395 - 10, yPos + 395+30, str(d2a_TofCcti))
+    page.drawCentredString(395 - 20, yPos + 240, str(d2a_TofCrecover))
+    page.drawCentredString(395 - 20, yPos + 270, str(d2a_TofChome))
+    page.drawCentredString(395 - 20, yPos + 300, str(d2a_TofCdead))
+    page.drawCentredString(395 - 20, yPos + 335, str(d2a_TofCnurseryITA))
+    page.drawCentredString(395 - 20, yPos + 365, str(d2a_TofCuti))
+    page.drawCentredString(395 - 20, yPos + 395, str(d2a_TofCnurseryBH))
+    page.drawCentredString(395 - 20, yPos + 395+30, str(d2a_TofCcti))
     page.setFont('Montserrat',12)
     page.setFillColor(rlabColors.gray)
     page.drawString(428 - 10, yPos + 230, 'recuperado(s)')
@@ -1050,12 +1043,10 @@ def putEmphasis():
 
     yPos = 700
 
-
+# %% [markdown]
 # ## Perfil Epidemiológico Dos Casos De Síndrome Respiratória Não Específicada
 
-# In[ ]:
-
-
+# %%
 def putSecOne():
     global page, yPos
 
@@ -1103,12 +1094,10 @@ def putSecOne():
 
     yPos += 450
 
-
+# %% [markdown]
 # ## Perfil epidemiológico casos confirmados
 
-# In[ ]:
-
-
+# %%
 def putSecTwo():
     global page, yPos
     
@@ -1151,12 +1140,10 @@ def putSecTwo():
 
     yPos += 450
 
-
+# %% [markdown]
 # ## Distribuição bairros
 
-# In[ ]:
-
-
+# %%
 def putSecThree():
     global page, yPos
 
@@ -1200,12 +1187,10 @@ def putSecThree():
 
     yPos += 100
 
-
+# %% [markdown]
 # ## Síndrome Respiratória Não Especificada Por Fator De Risco
 
-# In[ ]:
-
-
+# %%
 def putSecFour():
     global page, yPos
 
@@ -1234,12 +1219,10 @@ def putSecFour():
     )
     yPos += 350
 
-
+# %% [markdown]
 # ## Fator de risco confirmados
 
-# In[ ]:
-
-
+# %%
 def putSecFive():
     global page, yPos
 
@@ -1270,12 +1253,10 @@ def putSecFive():
     yPos += 350
  
 
-
+# %% [markdown]
 # ## Semana epidemiológica
 
-# In[ ]:
-
-
+# %%
 def putSecSix():
     global page, yPos
 
@@ -1305,17 +1286,18 @@ def putSecSix():
     yPos += 350
   
 
-
+# %% [markdown]
 # ## Footer
 
-# In[ ]:
-
-
+# %%
 def putFooter():
     global page
     
     # page.drawImage(logo, pgDim['w']-200, pgDim['h']-70, 125, 38) # Removed -- elections
     
+    # Set color
+    page.setFillColor(rlabColors.gray)
+
     # Draw icons
     page.setFont("FontAwesomeS",12)
     page.drawCentredString(pgDim['w']/2 - 100, pgDim['h']-40,'') # Link
@@ -1327,26 +1309,27 @@ def putFooter():
     page.drawCentredString(pgDim['w']/2, pgDim['h']-60, "Mais informações:") # xpos = 150
     _site = 'novoportal.itabira.mg.gov.br/'
     _fb = 'facebook.com/prefeituraitabira'
-    page.drawCentredString(pgDim['w']/2, pgDim['h']-40,_site) #'<link href="{0}">{0}</link>'.format(_site))
-    page.drawCentredString(pgDim['w']/2, pgDim['h']-25,_fb)# '<link href="{0}">{0}</link>'.format(_fb))
+    
+    space = 100
+    pdfDrawLink('http://{}'.format(_site), pgDim['w']/2-space, pgDim['h']-50, 2*space, 10)
+    pdfDrawLink('https://{}'.format(_fb), pgDim['w']/2-space, pgDim['h']-35, 2*space, 10)
 
+    page.drawCentredString(pgDim['w']/2, pgDim['h']-40,_site)
+    page.drawCentredString(pgDim['w']/2, pgDim['h']-25,_fb)
 
+# %% [markdown]
 # ## Save
 
-# In[ ]:
-
-
+# %%
 def save():
     global page
 
     page.save()  
 
-
+# %% [markdown]
 # ## Crescimento síndrome respiratória não especificada
 
-# In[ ]:
-
-
+# %%
 def putSecSeven():
     global page, yPos
 
@@ -1375,12 +1358,10 @@ def putSecSeven():
     yPos += 350
   
 
-
+# %% [markdown]
 # ## Crescimento de casos confirmados
 
-# In[ ]:
-
-
+# %%
 def putSecEight():
     global page, yPos
 
@@ -1405,12 +1386,10 @@ def putSecEight():
     yPos += 350
   
 
-
+# %% [markdown]
 # ## Get internal pdf
 
-# In[ ]:
-
-
+# %%
 def getInternal(fileName):
     pdf_Start(fileName)
     setTitle('Boletim Interno')
@@ -1427,12 +1406,10 @@ def getInternal(fileName):
     putFooter()
     save()
 
-
+# %% [markdown]
 # ## Get external pdf
 
-# In[ ]:
-
-
+# %%
 def getExternal(fileName):
     pdf_Start(fileName)
     setTitle('Boletim Externo')
@@ -1442,25 +1419,22 @@ def getExternal(fileName):
     putFooter()
     save()
 
-
+# %% [markdown]
 # # External PDF
 
-# In[ ]:
-
-
+# %%
 fileName = 'pdfs/Boletim-Externo_{}-{}-{}.pdf'.format(DAY,MONTH_NAME,YEAR)
 pgDim = {'w':792,'h':1150}
 
 getExternal(fileName)
 
-
+# %% [markdown]
 # # Internal PDF
 
-# In[ ]:
-
-
+# %%
 fileName = 'pdfs/Boletim-Interno_{}-{}-{}.pdf'.format(DAY,MONTH_NAME,YEAR)
 pgDim = {'w':792,'h':5450}
 
 getInternal(fileName)
+
 
