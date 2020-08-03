@@ -500,8 +500,8 @@ for i in set(df['Neighboorhood']):
     _nbh.append({ 'Neighboorhood': i, 'qtdSuspect': susp, 'qtdConf': conf})#, 'qtdAnalis': anali})
 # Sort by ascending order
 d2a_vNeighboorhood = sorted(_nbh, key=lambda k: k['qtdConf'], reverse=True)
-
-
+_aux = [i for i in d2a_vNeighboorhood if i['qtdSuspect'] or i['qtdConf']]
+d2a_vNeighboorhood = _aux
 
 # Now we must access a stored data which refers to oldiest reports
 # This is needed, because the sheetsheet change the current situation
@@ -665,7 +665,7 @@ def linePlot2(df, y, siz, ftsize='small'):
     spacingY = max(df[y])/10
     xStart = 0
     xSpace = floor( (df.shape[0] - xStart)/10 ) # It'll give me the spacing
-    vxSpace = [i for i in range(xStart, df.shape[0], xSpace) ]
+    vxSpace = [i for i in range(xStart, df.shape[0], 1) ]
     vxNames = []
     
     # Convert into word like
